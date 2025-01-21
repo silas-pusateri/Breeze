@@ -86,4 +86,50 @@ def get_ticket(ticket_id):
         return jsonify(ticket), 200
     except Exception as e:
         print("Error in get_ticket:", str(e))  # Debug log
-        return jsonify({'error': 'Failed to get ticket: ' + str(e)}), 500 
+        return jsonify({'error': 'Failed to get ticket: ' + str(e)}), 500
+
+@tickets_bp.route('/tickets/<int:ticket_id>', methods=['PUT'])
+@jwt_required()
+def update_ticket(ticket_id):
+    try:
+        # Get username from identity and role from claims
+        username = get_jwt_identity()
+        claims = get_jwt()
+        print("PUT - Username:", username)  # Debug log
+        print("PUT - Claims:", claims)  # Debug log
+        
+        data = request.get_json()
+        if not data:
+            return jsonify({'error': 'No data provided'}), 400
+            
+        ticket = next((t for t in tickets if t['id'] == ticket_id), None)
+        if not ticket:
+            return jsonify({'error': 'Ticket not found'}), 404
+            
+        # Check permissions
+        is_agent = claims.get('role') == 'agent'
+        is_owner = ticket['username'] == username
+        
+        if not (is_agent or is_owner):
+            return jsonify({'error': 'Unauthorized'}), 403
+            
+        # Regular users can only update description
+        if not is_agent and any(key != 'description' for key in data.keys()):
+            return jsonify({'error': 'You can only update the description'}), 403
+            
+        # Update allowed fields
+        if is_agent:
+            # Agents can update status and description
+            if 'status' in data:
+                ticket['status'] = data['status']
+            if 'description' in data:
+                ticket['description'] = data['description']
+        else:
+            # Regular users can only update description
+            if 'description' in data:
+                ticket['description'] = data['description']
+                
+        return jsonify(ticket), 200
+    except Exception as e:
+        print("Error in update_ticket:", str(e))  # Debug log
+        return jsonify({'error': 'Failed to update ticket: ' + str(e)}), 500 
