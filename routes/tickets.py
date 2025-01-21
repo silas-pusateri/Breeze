@@ -1,24 +1,41 @@
 from flask import Blueprint, request, jsonify
-from flask_jwt_extended import jwt_required, get_jwt_identity, get_jwt
 from datetime import datetime
+from config import supabase, logger
+from postgrest import APIError
+import traceback
 
 tickets_bp = Blueprint('tickets', __name__)
 
-# Temporary ticket storage (replace with Supabase later)
-tickets = []
+def get_user_from_token(token):
+    try:
+        # Get user info from Supabase token
+        user = supabase.auth.get_user(token)
+        return user.user
+    except Exception as e:
+        logger.error(f"Error getting user from token: {str(e)}")
+        return None
 
 @tickets_bp.route('/tickets', methods=['POST'])
-@jwt_required()
 def create_ticket():
     try:
-        # Get username from identity and role from claims
-        username = get_jwt_identity()
-        claims = get_jwt()
-        print("POST - Username:", username)  # Debug log
-        print("POST - Claims:", claims)  # Debug log
+        # Get the raw token without 'Bearer ' prefix
+        auth_header = request.headers.get('Authorization', '')
+        token = auth_header.replace('Bearer ', '') if auth_header else None
+        
+        if not token:
+            return jsonify({'error': 'No authorization token provided'}), 401
+            
+        # Get user from token
+        user = get_user_from_token(token)
+        if not user:
+            return jsonify({'error': 'Invalid token'}), 401
+            
+        email = user.email
+        role = user.user_metadata.get('role', 'customer')
         
         data = request.get_json()
-        print("POST - Request Data:", data)  # Debug log
+        logger.info(f"Creating ticket for {email} with role {role}")
+        logger.info(f"Request data: {data}")
         
         if not data:
             return jsonify({'error': 'No data provided'}), 400
@@ -29,9 +46,9 @@ def create_ticket():
         if not title or not description:
             return jsonify({'error': 'Title and description are required'}), 422
             
-        ticket = {
-            'id': len(tickets) + 1,
-            'username': username,
+        # Insert ticket into Supabase
+        ticket_data = {
+            'user_email': email,
             'title': title,
             'description': description,
             'created_at': datetime.now().isoformat(),
@@ -39,97 +56,210 @@ def create_ticket():
             'assigned_to': None
         }
         
-        tickets.append(ticket)
-        return jsonify(ticket), 201
+        logger.info(f"Inserting ticket data: {ticket_data}")
+        
+        # Create a new Supabase client with the token
+        client = supabase.auth.set_session(token)
+        
+        # Proceed with insert
+        try:
+            result = (
+                client
+                .table('tickets')
+                .insert(ticket_data)
+                .execute()
+            )
+            logger.info(f"Insert result: {result}")
+            
+            if hasattr(result, 'data') and result.data:
+                return jsonify(result.data[0]), 201
+            else:
+                return jsonify({'error': 'No data returned from insert operation'}), 500
+                
+        except APIError as api_e:
+            logger.error(f"Supabase API error: {str(api_e)}")
+            logger.error(traceback.format_exc())
+            return jsonify({'error': f'Database API error: {str(api_e)}'}), 500
+            
     except Exception as e:
-        print("Error in create_ticket:", str(e))  # Debug log
-        return jsonify({'error': 'Failed to create ticket: ' + str(e)}), 500
+        logger.error(f"Error creating ticket: {str(e)}")
+        logger.error(traceback.format_exc())
+        return jsonify({
+            'error': 'Failed to create ticket',
+            'details': str(e),
+            'traceback': traceback.format_exc()
+        }), 500
 
 @tickets_bp.route('/tickets', methods=['GET'])
-@jwt_required()
 def get_tickets():
     try:
-        # Get username from identity and role from claims
-        username = get_jwt_identity()
-        claims = get_jwt()
-        print("GET - Username:", username)  # Debug log
-        print("GET - Claims:", claims)  # Debug log
+        # Get the raw token without 'Bearer ' prefix
+        auth_header = request.headers.get('Authorization', '')
+        token = auth_header.replace('Bearer ', '') if auth_header else None
         
-        if claims.get('role') == 'agent':
-            # Agents can see all tickets
-            return jsonify(tickets), 200
-        else:
+        if not token:
+            return jsonify({'error': 'No authorization token provided'}), 401
+            
+        # Get user from token
+        user = get_user_from_token(token)
+        if not user:
+            return jsonify({'error': 'Invalid token'}), 401
+            
+        email = user.email
+        role = user.user_metadata.get('role', 'customer')
+            
+        logger.info(f"Fetching tickets for {email} with role {role}")
+        
+        # Create a new Supabase client with the token
+        client = supabase.auth.set_session(token)
+        
+        # Query tickets based on role
+        if role == 'customer':
+            logger.info("Filtering tickets for customer")
             # Customers can only see their own tickets
-            user_tickets = [t for t in tickets if t['username'] == username]
-            return jsonify(user_tickets), 200
+            result = (
+                client
+                .table('tickets')
+                .select('*')
+                .eq('user_email', email)
+                .execute()
+            )
+        else:
+            logger.info("Fetching all tickets for agent")
+            # Agents can see all tickets
+            result = (
+                client
+                .table('tickets')
+                .select('*')
+                .execute()
+            )
+            
+        logger.info(f"Query result: {result}")
+        return jsonify(result.data if hasattr(result, 'data') and result.data else [])
+        
     except Exception as e:
-        print("Error in get_tickets:", str(e))  # Debug log
-        return jsonify({'error': 'Failed to get tickets: ' + str(e)}), 500
+        logger.error(f"Error fetching tickets: {str(e)}")
+        logger.error(traceback.format_exc())
+        return jsonify({'error': str(e), 'traceback': traceback.format_exc()}), 500
 
 @tickets_bp.route('/tickets/<int:ticket_id>', methods=['GET'])
-@jwt_required()
 def get_ticket(ticket_id):
     try:
-        # Get username from identity and role from claims
-        username = get_jwt_identity()
-        claims = get_jwt()
-        print("GET Single - Username:", username)  # Debug log
-        print("GET Single - Claims:", claims)  # Debug log
+        # Get the raw token without 'Bearer ' prefix
+        auth_header = request.headers.get('Authorization', '')
+        token = auth_header.replace('Bearer ', '') if auth_header else None
         
-        ticket = next((t for t in tickets if t['id'] == ticket_id), None)
-        if not ticket:
+        if not token:
+            return jsonify({'error': 'No authorization token provided'}), 401
+            
+        # Get user from token
+        user = get_user_from_token(token)
+        if not user:
+            return jsonify({'error': 'Invalid token'}), 401
+            
+        email = user.email
+        role = user.user_metadata.get('role', 'customer')
+            
+        logger.info(f"Fetching ticket {ticket_id} for {email}")
+        
+        # Create a new Supabase client with the token
+        client = supabase.auth.set_session(token)
+        
+        # Query specific ticket
+        query = (
+            client
+            .table('tickets')
+            .select('*')
+            .eq('id', ticket_id)
+        )
+        
+        if role == 'customer':
+            # Customers can only see their own tickets
+            query = query.eq('user_email', email)
+            
+        result = query.execute()
+        logger.info(f"Query result: {result}")
+        
+        if not hasattr(result, 'data') or not result.data:
             return jsonify({'error': 'Ticket not found'}), 404
             
-        if claims.get('role') != 'agent' and ticket['username'] != username:
-            return jsonify({'error': 'Unauthorized'}), 403
-            
-        return jsonify(ticket), 200
+        return jsonify(result.data[0])
+        
     except Exception as e:
-        print("Error in get_ticket:", str(e))  # Debug log
-        return jsonify({'error': 'Failed to get ticket: ' + str(e)}), 500
+        logger.error(f"Error fetching ticket: {str(e)}")
+        logger.error(traceback.format_exc())
+        return jsonify({'error': str(e), 'traceback': traceback.format_exc()}), 500
 
 @tickets_bp.route('/tickets/<int:ticket_id>', methods=['PUT'])
-@jwt_required()
 def update_ticket(ticket_id):
     try:
-        # Get username from identity and role from claims
-        username = get_jwt_identity()
-        claims = get_jwt()
-        print("PUT - Username:", username)  # Debug log
-        print("PUT - Claims:", claims)  # Debug log
+        # Get the raw token without 'Bearer ' prefix
+        auth_header = request.headers.get('Authorization', '')
+        token = auth_header.replace('Bearer ', '') if auth_header else None
+        
+        if not token:
+            return jsonify({'error': 'No authorization token provided'}), 401
+            
+        # Get user from token
+        user = get_user_from_token(token)
+        if not user:
+            return jsonify({'error': 'Invalid token'}), 401
+            
+        email = user.email
+        role = user.user_metadata.get('role', 'customer')
+            
+        logger.info(f"Updating ticket {ticket_id} for {email}")
         
         data = request.get_json()
         if not data:
             return jsonify({'error': 'No data provided'}), 400
             
-        ticket = next((t for t in tickets if t['id'] == ticket_id), None)
-        if not ticket:
-            return jsonify({'error': 'Ticket not found'}), 404
-            
-        # Check permissions
-        is_agent = claims.get('role') == 'agent'
-        is_owner = ticket['username'] == username
+        # Create a new Supabase client with the token
+        client = supabase.auth.set_session(token)
         
-        if not (is_agent or is_owner):
-            return jsonify({'error': 'Unauthorized'}), 403
+        # Check if ticket exists and user has access
+        existing_ticket = (
+            client
+            .table('tickets')
+            .select('*')
+            .eq('id', ticket_id)
+        )
+        
+        if role == 'customer':
+            existing_ticket = existing_ticket.eq('user_email', email)
             
-        # Regular users can only update description
-        if not is_agent and any(key != 'description' for key in data.keys()):
-            return jsonify({'error': 'You can only update the description'}), 403
+        existing_result = existing_ticket.execute()
+        
+        if not hasattr(existing_result, 'data') or not existing_result.data:
+            return jsonify({'error': 'Ticket not found or access denied'}), 404
             
-        # Update allowed fields
-        if is_agent:
-            # Agents can update status and description
-            if 'status' in data:
-                ticket['status'] = data['status']
-            if 'description' in data:
-                ticket['description'] = data['description']
+        # Update ticket
+        update_data = {}
+        if 'title' in data:
+            update_data['title'] = data['title']
+        if 'description' in data:
+            update_data['description'] = data['description']
+        if 'status' in data and role == 'agent':  # Only agents can update status
+            update_data['status'] = data['status']
+        if 'assigned_to' in data and role == 'agent':  # Only agents can assign tickets
+            update_data['assigned_to'] = data['assigned_to']
+            
+        logger.info(f"Updating with data: {update_data}")
+        result = (
+            client
+            .table('tickets')
+            .update(update_data)
+            .eq('id', ticket_id)
+            .execute()
+        )
+        logger.info(f"Update result: {result}")
+        
+        if hasattr(result, 'data') and result.data:
+            return jsonify(result.data[0])
         else:
-            # Regular users can only update description
-            if 'description' in data:
-                ticket['description'] = data['description']
-                
-        return jsonify(ticket), 200
+            return jsonify({'error': 'Failed to update ticket'}), 500
+            
     except Exception as e:
-        print("Error in update_ticket:", str(e))  # Debug log
-        return jsonify({'error': 'Failed to update ticket: ' + str(e)}), 500 
+        logger.error(f"Error updating ticket: {str(e)}")
+        logger.error(traceback.format_exc())
+        return jsonify({'error': str(e), 'traceback': traceback.format_exc()}), 500 

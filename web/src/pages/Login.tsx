@@ -17,7 +17,7 @@ interface LoginProps {
 const Login: React.FC<LoginProps> = ({ setIsAuthenticated }) => {
   const navigate = useNavigate();
   const [formData, setFormData] = useState({
-    username: '',
+    email: '',
     password: '',
   });
   const [error, setError] = useState<string | null>(null);
@@ -38,9 +38,10 @@ const Login: React.FC<LoginProps> = ({ setIsAuthenticated }) => {
       const data = await response.json();
 
       if (response.ok) {
-        localStorage.setItem('token', data.access_token);
-        localStorage.setItem('userRole', data.role);
-        localStorage.setItem('username', formData.username);
+        // Store the Supabase token with Bearer prefix
+        localStorage.setItem('token', `Bearer ${data.access_token}`);
+        localStorage.setItem('userRole', data.user.role);
+        localStorage.setItem('userEmail', data.user.email);
         setIsAuthenticated(true);
         navigate('/dashboard');
       } else {
@@ -67,12 +68,13 @@ const Login: React.FC<LoginProps> = ({ setIsAuthenticated }) => {
           <form onSubmit={handleSubmit}>
             <TextField
               fullWidth
-              label="Username"
+              label="Email"
+              type="email"
               margin="normal"
               required
-              value={formData.username}
+              value={formData.email}
               onChange={(e) =>
-                setFormData({ ...formData, username: e.target.value })
+                setFormData({ ...formData, email: e.target.value })
               }
             />
             <TextField

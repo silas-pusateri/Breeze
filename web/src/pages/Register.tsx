@@ -22,7 +22,7 @@ interface RegisterProps {
 const Register: React.FC<RegisterProps> = ({ setIsAuthenticated }) => {
   const navigate = useNavigate();
   const [formData, setFormData] = useState({
-    username: '',
+    email: '',
     password: '',
     role: 'customer',
   });
@@ -44,10 +44,17 @@ const Register: React.FC<RegisterProps> = ({ setIsAuthenticated }) => {
       const data = await response.json();
 
       if (response.ok) {
-        localStorage.setItem('token', data.access_token);
-        localStorage.setItem('role', data.role);
-        setIsAuthenticated(true);
-        navigate('/dashboard');
+        if (data.access_token) {
+          // Store the Supabase token with Bearer prefix
+          localStorage.setItem('token', `Bearer ${data.access_token}`);
+          localStorage.setItem('userRole', data.user.role);
+          localStorage.setItem('userEmail', data.user.email);
+          setIsAuthenticated(true);
+          navigate('/dashboard');
+        } else {
+          // Handle email verification case
+          setError(data.message);
+        }
       } else {
         setError(data.error || 'Registration failed');
       }
@@ -72,12 +79,13 @@ const Register: React.FC<RegisterProps> = ({ setIsAuthenticated }) => {
           <Box component="form" onSubmit={handleSubmit}>
             <TextField
               fullWidth
-              label="Username"
+              label="Email"
+              type="email"
               margin="normal"
               required
-              value={formData.username}
+              value={formData.email}
               onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
-                setFormData({ ...formData, username: e.target.value })
+                setFormData({ ...formData, email: e.target.value })
               }
             />
             <TextField

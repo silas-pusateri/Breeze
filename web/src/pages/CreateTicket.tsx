@@ -7,54 +7,69 @@ import {
   Button,
   Typography,
   Box,
+  Alert,
 } from '@mui/material';
 
-const CreateTicket = () => {
+const CreateTicket: React.FC = () => {
   const navigate = useNavigate();
   const [formData, setFormData] = useState({
     title: '',
     description: '',
   });
+  const [error, setError] = useState<string | null>(null);
+  const token = localStorage.getItem('token');
 
-  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    setError(null);
+
     try {
+      if (!token) {
+        setError('No authentication token found');
+        return;
+      }
+
       const response = await fetch('http://localhost:5001/tickets', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          Authorization: `Bearer ${localStorage.getItem('token')}`,
+          'Authorization': token,
         },
         body: JSON.stringify(formData),
       });
 
-      if (response.ok) {
-        navigate('/dashboard');
-      } else {
+      if (!response.ok) {
         const errorData = await response.json();
-        alert(errorData.error || 'Failed to create ticket');
+        throw new Error(errorData.error || 'Failed to create ticket');
       }
+
+      navigate('/dashboard');
     } catch (error) {
       console.error('Error creating ticket:', error);
-      alert('Network error while creating ticket');
+      setError(error instanceof Error ? error.message : 'Failed to create ticket');
     }
   };
 
   return (
-    <Container maxWidth="md">
+    <Container maxWidth="sm">
       <Box sx={{ mt: 4 }}>
-        <Typography variant="h4" gutterBottom>
-          Create New Ticket
-        </Typography>
         <Paper elevation={3} sx={{ p: 4 }}>
-          <Box component="form" onSubmit={handleSubmit}>
+          <Typography variant="h4" align="center" gutterBottom>
+            Create Ticket
+          </Typography>
+          {error && (
+            <Alert severity="error" sx={{ mb: 2 }}>
+              {error}
+            </Alert>
+          )}
+          <form onSubmit={handleSubmit}>
             <TextField
               fullWidth
               label="Title"
               margin="normal"
               required
               value={formData.title}
-              onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
+              onChange={(e) =>
                 setFormData({ ...formData, title: e.target.value })
               }
             />
@@ -66,12 +81,13 @@ const CreateTicket = () => {
               multiline
               rows={4}
               value={formData.description}
-              onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
+              onChange={(e) =>
                 setFormData({ ...formData, description: e.target.value })
               }
             />
             <Box sx={{ mt: 3, display: 'flex', gap: 2 }}>
               <Button
+                fullWidth
                 variant="contained"
                 color="primary"
                 type="submit"
@@ -79,13 +95,14 @@ const CreateTicket = () => {
                 Create Ticket
               </Button>
               <Button
+                fullWidth
                 variant="outlined"
                 onClick={() => navigate('/dashboard')}
               >
                 Cancel
               </Button>
             </Box>
-          </Box>
+          </form>
         </Paper>
       </Box>
     </Container>
