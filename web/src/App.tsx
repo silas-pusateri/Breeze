@@ -16,6 +16,7 @@ import Register from './pages/Register';
 import Dashboard from './pages/Dashboard';
 import CreateTicket from './pages/CreateTicket';
 import EditTicket from './pages/EditTicket';
+import ViewTicket from './pages/ViewTicket';
 import KnowledgeBase from './pages/KnowledgeBase';
 import Header from './components/Header';
 
@@ -40,6 +41,10 @@ const App = () => {
           <Route
             path="/edit-ticket/:ticketId"
             element={isAuthenticated ? <EditTicket /> : <Navigate to="/login" />}
+          />
+          <Route
+            path="/view-ticket/:ticketId"
+            element={isAuthenticated ? <ViewTicket /> : <Navigate to="/login" />}
           />
           <Route
             path="/knowledge-base"

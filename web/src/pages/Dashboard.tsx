@@ -42,7 +42,7 @@ const Dashboard: React.FC = () => {
 
       const response = await fetch('http://localhost:5001/tickets', {
         headers: {
-          'Authorization': token,
+          'Authorization': `Bearer ${token}`,
           'X-Refresh-Token': refreshToken,
           'Content-Type': 'application/json',
         },
@@ -71,14 +71,26 @@ const Dashboard: React.FC = () => {
 
   const actionBodyTemplate = (rowData: Ticket) => {
     return (
-      <Button
-        icon="pi pi-pencil"
-        rounded
-        text
-        severity="info"
-        onClick={() => handleEditTicket(rowData.id)}
-        tooltip="Edit Ticket"
-      />
+      <div className="flex gap-2">
+        <Button
+          icon="pi pi-eye"
+          rounded
+          text
+          severity="info"
+          onClick={() => navigate(`/view-ticket/${rowData.id}`)}
+          tooltip="View Ticket"
+        />
+        {userRole === 'agent' && (
+          <Button
+            icon="pi pi-pencil"
+            rounded
+            text
+            severity="info"
+            onClick={() => handleEditTicket(rowData.id)}
+            tooltip="Edit Ticket"
+          />
+        )}
+      </div>
     );
   };
 
