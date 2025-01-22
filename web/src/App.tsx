@@ -6,6 +6,8 @@ import Register from './pages/Register';
 import Dashboard from './pages/Dashboard';
 import CreateTicket from './pages/CreateTicket';
 import EditTicket from './pages/EditTicket';
+import KnowledgeBase from './pages/KnowledgeBase';
+import Header from './components/Header';
 
 const theme = createTheme({
   palette: {
@@ -24,6 +26,7 @@ const App = () => {
   return (
     <ThemeProvider theme={theme}>
       <Router>
+        <Header isAuthenticated={isAuthenticated} setIsAuthenticated={setIsAuthenticated} />
         <Routes>
           <Route path="/login" element={<Login setIsAuthenticated={setIsAuthenticated} />} />
           <Route path="/register" element={<Register setIsAuthenticated={setIsAuthenticated} />} />
@@ -38,6 +41,10 @@ const App = () => {
           <Route
             path="/edit-ticket/:ticketId"
             element={isAuthenticated ? <EditTicket /> : <Navigate to="/login" />}
+          />
+          <Route
+            path="/knowledge-base"
+            element={isAuthenticated ? <KnowledgeBase /> : <Navigate to="/login" />}
           />
           <Route path="/" element={<Navigate to="/login" />} />
         </Routes>

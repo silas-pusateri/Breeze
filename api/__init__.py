@@ -8,8 +8,10 @@ def create_app():
     # Register blueprints
     from routes.auth import auth_bp
     from routes.tickets import tickets_bp
+    from routes.knowledge import knowledge_bp
     
     app.register_blueprint(auth_bp)
     app.register_blueprint(tickets_bp)
+    app.register_blueprint(knowledge_bp)
     
     return app 

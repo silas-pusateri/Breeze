@@ -39,7 +39,7 @@ const Login: React.FC<LoginProps> = ({ setIsAuthenticated }) => {
 
       if (response.ok) {
         // Store the tokens and user info
-        localStorage.setItem('token', `Bearer ${data.access_token}`);
+        localStorage.setItem('token', data.access_token);
         localStorage.setItem('refresh_token', data.refresh_token);
         localStorage.setItem('userRole', data.user.role);
         localStorage.setItem('userEmail', data.user.email);
