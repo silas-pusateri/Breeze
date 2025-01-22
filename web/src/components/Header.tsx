@@ -1,14 +1,8 @@
-import React, { useState } from 'react';
+import React from 'react';
 import { useNavigate } from 'react-router-dom';
-import {
-  AppBar,
-  Toolbar,
-  Typography,
-  IconButton,
-  Menu,
-  MenuItem,
-  Box,
-} from '@mui/material';
+import { Menubar } from 'primereact/menubar';
+import { Button } from 'primereact/button';
+import { MenuItem } from 'primereact/menuitem';
 
 interface HeaderProps {
   isAuthenticated: boolean;
@@ -17,66 +11,72 @@ interface HeaderProps {
 
 const Header: React.FC<HeaderProps> = ({ isAuthenticated, setIsAuthenticated }) => {
   const navigate = useNavigate();
-  const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
-
-  const handleMenu = (event: React.MouseEvent<HTMLElement>) => {
-    setAnchorEl(event.currentTarget);
-  };
-
-  const handleClose = () => {
-    setAnchorEl(null);
-  };
-
-  const handleNavigation = (path: string) => {
-    navigate(path);
-    handleClose();
-  };
 
   const handleLogout = () => {
+    localStorage.removeItem('token');
+    localStorage.removeItem('refresh_token');
+    localStorage.removeItem('userRole');
+    localStorage.removeItem('userEmail');
     setIsAuthenticated(false);
     navigate('/login');
-    handleClose();
   };
 
+  const mainMenuItems: MenuItem[] = isAuthenticated
+    ? [
+        {
+          label: 'Dashboard',
+          icon: 'pi pi-home',
+          command: () => navigate('/dashboard'),
+        },
+        {
+          label: 'Create Ticket',
+          icon: 'pi pi-plus',
+          command: () => navigate('/create-ticket'),
+        },
+        {
+          label: 'Knowledge Base',
+          icon: 'pi pi-book',
+          command: () => navigate('/knowledge-base'),
+        }
+      ]
+    : [];
+
+  const start = <div className="text-xl font-bold">Breeze</div>;
+  const end = isAuthenticated ? (
+    <Button
+      label="Logout"
+      icon="pi pi-power-off"
+      severity="secondary"
+      text
+      onClick={handleLogout}
+    />
+  ) : (
+    <div className="flex gap-2">
+      <Button
+        label="Login"
+        icon="pi pi-sign-in"
+        severity="info"
+        text
+        onClick={() => navigate('/login')}
+      />
+      <Button
+        label="Register"
+        icon="pi pi-user-plus"
+        severity="info"
+        onClick={() => navigate('/register')}
+      />
+    </div>
+  );
+
   return (
-    <AppBar position="static">
-      <Toolbar>
-        <Typography variant="h6" component="div" sx={{ flexGrow: 1 }}>
-          Breeze
-        </Typography>
-        {isAuthenticated && (
-          <Box>
-            <IconButton
-              size="large"
-              edge="end"
-              color="inherit"
-              aria-label="menu"
-              onClick={handleMenu}
-            >
-              ☰
-            </IconButton>
-            <Menu
-              anchorEl={anchorEl}
-              open={Boolean(anchorEl)}
-              onClose={handleClose}
-              anchorOrigin={{
-                vertical: 'top',
-                horizontal: 'right',
-              }}
-              transformOrigin={{
-                vertical: 'top',
-                horizontal: 'right',
-              }}
-            >
-              <MenuItem onClick={() => handleNavigation('/dashboard')}>Dashboard</MenuItem>
-              <MenuItem onClick={() => handleNavigation('/create-ticket')}>Create Ticket</MenuItem>
-              <MenuItem onClick={() => handleNavigation('/knowledge-base')}>Knowledge Base</MenuItem>
-              <MenuItem onClick={handleLogout}>Logout</MenuItem>
-            </Menu>
-          </Box>
-        )}
-      </Toolbar>
-    </AppBar>
+    <div className="card">
+      <Menubar
+        model={mainMenuItems}
+        start={start}
+        end={end}
+        className="surface-0 border-none px-4"
+      />
+    </div>
   );
 };
 

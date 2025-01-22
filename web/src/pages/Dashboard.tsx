@@ -1,19 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import {
-  Container,
-  Typography,
-  Button,
-  Box,
-  Paper,
-  Table,
-  TableBody,
-  TableCell,
-  TableContainer,
-  TableHead,
-  TableRow,
-  Alert,
-} from '@mui/material';
+import { Button } from 'primereact/button';
+import { DataTable } from 'primereact/datatable';
+import { Column } from 'primereact/column';
+import { Message } from 'primereact/message';
+import './Dashboard.css';
 
 interface Ticket {
   id: number;
@@ -78,67 +69,73 @@ const Dashboard: React.FC = () => {
     navigate(`/edit-ticket/${ticketId}`);
   };
 
+  const actionBodyTemplate = (rowData: Ticket) => {
+    return (
+      <Button
+        icon="pi pi-pencil"
+        rounded
+        text
+        severity="info"
+        onClick={() => handleEditTicket(rowData.id)}
+        tooltip="Edit Ticket"
+      />
+    );
+  };
+
+  const dateBodyTemplate = (rowData: Ticket) => {
+    return new Date(rowData.created_at).toLocaleDateString();
+  };
+
+  const statusBodyTemplate = (rowData: Ticket) => {
+    return (
+      <span className={`status-badge status-${rowData.status.toLowerCase()}`}>
+        {rowData.status}
+      </span>
+    );
+  };
+
   return (
-    <Container>
-      <Box sx={{ mt: 4, mb: 4 }}>
-        <Typography variant="h4" component="h1" gutterBottom>
-          Ticket Dashboard
-        </Typography>
-        <Button
-          variant="contained"
-          color="primary"
-          onClick={handleCreateTicket}
-          sx={{ mb: 3 }}
-        >
-          Create New Ticket
-        </Button>
+    <div className="p-4">
+      <div className="flex flex-column gap-4">
+        <div className="flex align-items-center justify-content-between">
+          <h1 className="text-4xl font-bold m-0">Ticket Dashboard</h1>
+          <Button
+            label="Create New Ticket"
+            icon="pi pi-plus"
+            onClick={handleCreateTicket}
+          />
+        </div>
+
         {error && (
-          <Alert severity="error" sx={{ mb: 2 }}>
-            {error}
-          </Alert>
+          <Message severity="error" text={error} className="w-full" />
         )}
-        <TableContainer component={Paper}>
-          <Table>
-            <TableHead>
-              <TableRow>
-                <TableCell>ID</TableCell>
-                <TableCell>Title</TableCell>
-                <TableCell>Status</TableCell>
-                <TableCell>Created By</TableCell>
-                <TableCell>Created At</TableCell>
-                {userRole === 'agent' && <TableCell>Assigned To</TableCell>}
-                <TableCell>Actions</TableCell>
-              </TableRow>
-            </TableHead>
-            <TableBody>
-              {tickets.map((ticket) => (
-                <TableRow key={ticket.id}>
-                  <TableCell>{ticket.id}</TableCell>
-                  <TableCell>{ticket.title}</TableCell>
-                  <TableCell>{ticket.status}</TableCell>
-                  <TableCell>{ticket.user_email}</TableCell>
-                  <TableCell>
-                    {new Date(ticket.created_at).toLocaleDateString()}
-                  </TableCell>
-                  {userRole === 'agent' && (
-                    <TableCell>{ticket.assigned_to || 'Unassigned'}</TableCell>
-                  )}
-                  <TableCell>
-                    <Button
-                      variant="outlined"
-                      size="small"
-                      onClick={() => handleEditTicket(ticket.id)}
-                    >
-                      Edit
-                    </Button>
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        </TableContainer>
-      </Box>
-    </Container>
+
+        <DataTable
+          value={tickets}
+          paginator
+          rows={10}
+          rowsPerPageOptions={[5, 10, 25, 50]}
+          tableStyle={{ minWidth: '50rem' }}
+          className="p-datatable-striped"
+        >
+          <Column field="id" header="ID" sortable style={{ width: '5%' }} />
+          <Column field="title" header="Title" sortable style={{ width: '25%' }} />
+          <Column field="status" header="Status" body={statusBodyTemplate} sortable style={{ width: '10%' }} />
+          <Column field="user_email" header="Created By" sortable style={{ width: '20%' }} />
+          <Column field="created_at" header="Created At" body={dateBodyTemplate} sortable style={{ width: '15%' }} />
+          {userRole === 'agent' && (
+            <Column
+              field="assigned_to"
+              header="Assigned To"
+              body={(rowData) => rowData.assigned_to || 'Unassigned'}
+              sortable
+              style={{ width: '15%' }}
+            />
+          )}
+          <Column body={actionBodyTemplate} header="Actions" style={{ width: '10%' }} />
+        </DataTable>
+      </div>
+    </div>
   );
 };
 

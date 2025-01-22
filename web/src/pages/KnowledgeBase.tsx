@@ -1,20 +1,11 @@
-import React, { useState, useEffect } from 'react';
-import {
-  Container,
-  Typography,
-  Button,
-  Box,
-  Paper,
-  Table,
-  TableBody,
-  TableCell,
-  TableContainer,
-  TableHead,
-  TableRow,
-  Alert,
-  IconButton,
-} from '@mui/material';
-import * as Icons from '@mui/icons-material';
+import React, { useState, useEffect, useRef } from 'react';
+import { DataTable } from 'primereact/datatable';
+import { Column } from 'primereact/column';
+import { Button } from 'primereact/button';
+import { Message } from 'primereact/message';
+import { FileUpload } from 'primereact/fileupload';
+import { ConfirmDialog, confirmDialog } from 'primereact/confirmdialog';
+import { Toast } from 'primereact/toast';
 
 interface KnowledgeFile {
   id: number;
@@ -30,6 +21,7 @@ const KnowledgeBase: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
   const token = localStorage.getItem('token');
   const refreshToken = localStorage.getItem('refresh_token');
+  const toast = useRef<Toast>(null);
 
   useEffect(() => {
     fetchFiles();
@@ -63,8 +55,8 @@ const KnowledgeBase: React.FC = () => {
     }
   };
 
-  const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0];
+  const handleFileUpload = async (event: { files: File[] }) => {
+    const file = event.files[0];
     if (!file) return;
 
     const formData = new FormData();
@@ -89,11 +81,35 @@ const KnowledgeBase: React.FC = () => {
         throw new Error(errorData.error || 'Failed to upload file');
       }
 
-      await fetchFiles(); // Refresh the file list
+      await fetchFiles();
+      toast.current?.show({
+        severity: 'success',
+        summary: 'Success',
+        detail: 'File uploaded successfully',
+        life: 3000
+      });
     } catch (error) {
       console.error('Failed to upload file:', error);
       setError(error instanceof Error ? error.message : 'Failed to upload file');
+      toast.current?.show({
+        severity: 'error',
+        summary: 'Error',
+        detail: error instanceof Error ? error.message : 'Failed to upload file',
+        life: 3000
+      });
     }
+  };
+
+  const confirmDelete = (fileId: number) => {
+    confirmDialog({
+      message: 'Are you sure you want to delete this file?',
+      header: 'Delete Confirmation',
+      icon: 'pi pi-exclamation-triangle',
+      accept: () => handleDelete(fileId),
+      acceptIcon: "pi pi-trash",
+      acceptClassName: "p-button-danger",
+      rejectIcon: "pi pi-times"
+    });
   };
 
   const handleDelete = async (fileId: number) => {
@@ -116,10 +132,22 @@ const KnowledgeBase: React.FC = () => {
         throw new Error(errorData.error || 'Failed to delete file');
       }
 
-      await fetchFiles(); // Refresh the file list
+      await fetchFiles();
+      toast.current?.show({
+        severity: 'success',
+        summary: 'Success',
+        detail: 'File deleted successfully',
+        life: 3000
+      });
     } catch (error) {
       console.error('Failed to delete file:', error);
       setError(error instanceof Error ? error.message : 'Failed to delete file');
+      toast.current?.show({
+        severity: 'error',
+        summary: 'Error',
+        detail: error instanceof Error ? error.message : 'Failed to delete file',
+        life: 3000
+      });
     }
   };
 
@@ -131,76 +159,68 @@ const KnowledgeBase: React.FC = () => {
     return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
   };
 
+  const actionBodyTemplate = (rowData: KnowledgeFile) => {
+    return (
+      <Button
+        icon="pi pi-trash"
+        rounded
+        text
+        severity="danger"
+        onClick={() => confirmDelete(rowData.id)}
+        tooltip="Delete File"
+      />
+    );
+  };
+
+  const dateBodyTemplate = (rowData: KnowledgeFile) => {
+    return new Date(rowData.uploaded_at).toLocaleDateString();
+  };
+
+  const fileSizeBodyTemplate = (rowData: KnowledgeFile) => {
+    return formatFileSize(rowData.file_size);
+  };
+
   return (
-    <Container>
-      <Box sx={{ mt: 4, mb: 4 }}>
-        <Typography variant="h4" component="h1" gutterBottom>
-          Knowledge Base
-        </Typography>
-        
-        <Box sx={{ mb: 3 }}>
-          <input
+    <div className="p-4">
+      <Toast ref={toast} />
+      <ConfirmDialog />
+
+      <div className="flex flex-column gap-4">
+        <div className="flex align-items-center justify-content-between">
+          <h1 className="text-4xl font-bold m-0">Knowledge Base</h1>
+          <FileUpload
+            mode="basic"
             accept="*/*"
-            style={{ display: 'none' }}
-            id="file-upload"
-            type="file"
-            onChange={handleFileUpload}
+            maxFileSize={10000000}
+            customUpload
+            uploadHandler={handleFileUpload}
+            auto
+            chooseLabel="Upload File"
+            className="p-button-primary"
           />
-          <label htmlFor="file-upload">
-            <Button
-              variant="contained"
-              component="span"
-              startIcon={<Icons.CloudUpload />}
-            >
-              Upload File
-            </Button>
-          </label>
-        </Box>
+        </div>
 
         {error && (
-          <Alert severity="error" sx={{ mb: 2 }}>
-            {error}
-          </Alert>
+          <Message severity="error" text={error} className="w-full" />
         )}
 
-        <TableContainer component={Paper}>
-          <Table>
-            <TableHead>
-              <TableRow>
-                <TableCell>Filename</TableCell>
-                <TableCell>Type</TableCell>
-                <TableCell>Size</TableCell>
-                <TableCell>Uploaded By</TableCell>
-                <TableCell>Upload Date</TableCell>
-                <TableCell>Actions</TableCell>
-              </TableRow>
-            </TableHead>
-            <TableBody>
-              {files.map((file) => (
-                <TableRow key={file.id}>
-                  <TableCell>{file.filename}</TableCell>
-                  <TableCell>{file.file_type}</TableCell>
-                  <TableCell>{formatFileSize(file.file_size)}</TableCell>
-                  <TableCell>{file.uploaded_by}</TableCell>
-                  <TableCell>
-                    {new Date(file.uploaded_at).toLocaleDateString()}
-                  </TableCell>
-                  <TableCell>
-                    <IconButton
-                      onClick={() => handleDelete(file.id)}
-                      color="error"
-                      size="small"
-                    >
-                      <Icons.Delete />
-                    </IconButton>
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        </TableContainer>
-      </Box>
-    </Container>
+        <DataTable
+          value={files}
+          paginator
+          rows={10}
+          rowsPerPageOptions={[5, 10, 25, 50]}
+          tableStyle={{ minWidth: '50rem' }}
+          className="p-datatable-striped"
+        >
+          <Column field="filename" header="Filename" sortable />
+          <Column field="file_type" header="Type" sortable />
+          <Column field="file_size" header="Size" body={fileSizeBodyTemplate} sortable />
+          <Column field="uploaded_by" header="Uploaded By" sortable />
+          <Column field="uploaded_at" header="Upload Date" body={dateBodyTemplate} sortable />
+          <Column body={actionBodyTemplate} header="Actions" style={{ width: '10%' }} />
+        </DataTable>
+      </div>
+    </div>
   );
 };
 

@@ -1,14 +1,10 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import {
-  Container,
-  Paper,
-  TextField,
-  Button,
-  Typography,
-  Box,
-  Alert,
-} from '@mui/material';
+import { Card } from 'primereact/card';
+import { InputText } from 'primereact/inputtext';
+import { InputTextarea } from 'primereact/inputtextarea';
+import { Button } from 'primereact/button';
+import { Message } from 'primereact/message';
 
 const CreateTicket: React.FC = () => {
   const navigate = useNavigate();
@@ -58,61 +54,60 @@ const CreateTicket: React.FC = () => {
   };
 
   return (
-    <Container maxWidth="sm">
-      <Box sx={{ mt: 4 }}>
-        <Paper elevation={3} sx={{ p: 4 }}>
-          <Typography variant="h4" align="center" gutterBottom>
-            Create Ticket
-          </Typography>
+    <div className="flex align-items-center justify-content-center min-h-screen">
+      <div className="w-full md:w-8 lg:w-6">
+        <Card title="Create Ticket" className="shadow-2">
           {error && (
-            <Alert severity="error" sx={{ mb: 2 }}>
-              {error}
-            </Alert>
+            <Message severity="error" text={error} className="mb-3 w-full" />
           )}
-          <form onSubmit={handleSubmit}>
-            <TextField
-              fullWidth
-              label="Title"
-              margin="normal"
-              required
-              value={formData.title}
-              onChange={(e) =>
-                setFormData({ ...formData, title: e.target.value })
-              }
-            />
-            <TextField
-              fullWidth
-              label="Description"
-              margin="normal"
-              required
-              multiline
-              rows={4}
-              value={formData.description}
-              onChange={(e) =>
-                setFormData({ ...formData, description: e.target.value })
-              }
-            />
-            <Box sx={{ mt: 3, display: 'flex', gap: 2 }}>
+          <form onSubmit={handleSubmit} className="flex flex-column gap-3">
+            <div className="p-float-label">
+              <InputText
+                id="title"
+                value={formData.title}
+                onChange={(e) =>
+                  setFormData({ ...formData, title: e.target.value })
+                }
+                className="w-full"
+                required
+              />
+              <label htmlFor="title">Title</label>
+            </div>
+
+            <div className="p-float-label">
+              <InputTextarea
+                id="description"
+                value={formData.description}
+                onChange={(e) =>
+                  setFormData({ ...formData, description: e.target.value })
+                }
+                rows={4}
+                className="w-full"
+                required
+                autoResize
+              />
+              <label htmlFor="description">Description</label>
+            </div>
+
+            <div className="flex gap-2 mt-3">
               <Button
-                fullWidth
-                variant="contained"
-                color="primary"
+                label="Create Ticket"
+                icon="pi pi-plus"
                 type="submit"
-              >
-                Create Ticket
-              </Button>
+              />
               <Button
-                fullWidth
-                variant="outlined"
+                label="Cancel"
+                icon="pi pi-times"
+                severity="secondary"
+                outlined
+                type="button"
                 onClick={() => navigate('/dashboard')}
-              >
-                Cancel
-              </Button>
-            </Box>
+              />
+            </div>
           </form>
-        </Paper>
-      </Box>
-    </Container>
+        </Card>
+      </div>
+    </div>
   );
 };
 
