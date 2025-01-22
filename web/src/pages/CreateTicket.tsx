@@ -29,11 +29,18 @@ const CreateTicket: React.FC = () => {
         return;
       }
 
+      const refreshToken = localStorage.getItem('refresh_token');
+      if (!refreshToken) {
+        setError('No refresh token found');
+        return;
+      }
+
       const response = await fetch('http://localhost:5001/tickets', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
           'Authorization': token,
+          'X-Refresh-Token': refreshToken,
         },
         body: JSON.stringify(formData),
       });

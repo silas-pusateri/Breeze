@@ -45,8 +45,9 @@ const Register: React.FC<RegisterProps> = ({ setIsAuthenticated }) => {
 
       if (response.ok) {
         if (data.access_token) {
-          // Store the Supabase token with Bearer prefix
+          // Store the tokens and user info
           localStorage.setItem('token', `Bearer ${data.access_token}`);
+          localStorage.setItem('refresh_token', data.refresh_token);
           localStorage.setItem('userRole', data.user.role);
           localStorage.setItem('userEmail', data.user.email);
           setIsAuthenticated(true);

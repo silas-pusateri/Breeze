@@ -43,9 +43,17 @@ const EditTicket: React.FC = () => {
     const fetchTicket = async () => {
       try {
         const token = localStorage.getItem('token');
+        const refreshToken = localStorage.getItem('refresh_token');
+        
+        if (!token || !refreshToken) {
+          setError('Authentication tokens not found');
+          return;
+        }
+
         const response = await fetch(`http://localhost:5001/tickets/${ticketId}`, {
           headers: {
-            Authorization: `Bearer ${token}`,
+            Authorization: token,
+            'X-Refresh-Token': refreshToken,
           },
         });
 
@@ -75,6 +83,13 @@ const EditTicket: React.FC = () => {
 
     try {
       const token = localStorage.getItem('token');
+      const refreshToken = localStorage.getItem('refresh_token');
+      
+      if (!token || !refreshToken) {
+        setError('Authentication tokens not found');
+        return;
+      }
+
       const updateData = userRole === 'agent'
         ? formData
         : { description: formData.description };
@@ -83,7 +98,8 @@ const EditTicket: React.FC = () => {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`,
+          Authorization: token,
+          'X-Refresh-Token': refreshToken,
         },
         body: JSON.stringify(updateData),
       });

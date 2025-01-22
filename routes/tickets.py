@@ -15,15 +15,25 @@ def get_user_from_token(token):
         logger.error(f"Error getting user from token: {str(e)}")
         return None
 
+def get_supabase_client(access_token, refresh_token):
+    try:
+        # Set the session
+        supabase.auth.set_session(access_token, refresh_token)
+        return supabase
+    except Exception as e:
+        logger.error(f"Error setting session: {str(e)}")
+        return None
+
 @tickets_bp.route('/tickets', methods=['POST'])
 def create_ticket():
     try:
         # Get the raw token without 'Bearer ' prefix
         auth_header = request.headers.get('Authorization', '')
         token = auth_header.replace('Bearer ', '') if auth_header else None
+        refresh_token = request.headers.get('X-Refresh-Token')
         
-        if not token:
-            return jsonify({'error': 'No authorization token provided'}), 401
+        if not token or not refresh_token:
+            return jsonify({'error': 'No authorization tokens provided'}), 401
             
         # Get user from token
         user = get_user_from_token(token)
@@ -58,8 +68,10 @@ def create_ticket():
         
         logger.info(f"Inserting ticket data: {ticket_data}")
         
-        # Create a new Supabase client with the token
-        client = supabase.auth.set_session(token)
+        # Get Supabase client with session
+        client = get_supabase_client(token, refresh_token)
+        if not client:
+            return jsonify({'error': 'Failed to initialize Supabase client'}), 500
         
         # Proceed with insert
         try:
@@ -96,9 +108,10 @@ def get_tickets():
         # Get the raw token without 'Bearer ' prefix
         auth_header = request.headers.get('Authorization', '')
         token = auth_header.replace('Bearer ', '') if auth_header else None
+        refresh_token = request.headers.get('X-Refresh-Token')
         
-        if not token:
-            return jsonify({'error': 'No authorization token provided'}), 401
+        if not token or not refresh_token:
+            return jsonify({'error': 'No authorization tokens provided'}), 401
             
         # Get user from token
         user = get_user_from_token(token)
@@ -110,8 +123,10 @@ def get_tickets():
             
         logger.info(f"Fetching tickets for {email} with role {role}")
         
-        # Create a new Supabase client with the token
-        client = supabase.auth.set_session(token)
+        # Get Supabase client with session
+        client = get_supabase_client(token, refresh_token)
+        if not client:
+            return jsonify({'error': 'Failed to initialize Supabase client'}), 500
         
         # Query tickets based on role
         if role == 'customer':
@@ -148,9 +163,10 @@ def get_ticket(ticket_id):
         # Get the raw token without 'Bearer ' prefix
         auth_header = request.headers.get('Authorization', '')
         token = auth_header.replace('Bearer ', '') if auth_header else None
+        refresh_token = request.headers.get('X-Refresh-Token')
         
-        if not token:
-            return jsonify({'error': 'No authorization token provided'}), 401
+        if not token or not refresh_token:
+            return jsonify({'error': 'No authorization tokens provided'}), 401
             
         # Get user from token
         user = get_user_from_token(token)
@@ -162,8 +178,10 @@ def get_ticket(ticket_id):
             
         logger.info(f"Fetching ticket {ticket_id} for {email}")
         
-        # Create a new Supabase client with the token
-        client = supabase.auth.set_session(token)
+        # Get Supabase client with session
+        client = get_supabase_client(token, refresh_token)
+        if not client:
+            return jsonify({'error': 'Failed to initialize Supabase client'}), 500
         
         # Query specific ticket
         query = (
@@ -196,9 +214,10 @@ def update_ticket(ticket_id):
         # Get the raw token without 'Bearer ' prefix
         auth_header = request.headers.get('Authorization', '')
         token = auth_header.replace('Bearer ', '') if auth_header else None
+        refresh_token = request.headers.get('X-Refresh-Token')
         
-        if not token:
-            return jsonify({'error': 'No authorization token provided'}), 401
+        if not token or not refresh_token:
+            return jsonify({'error': 'No authorization tokens provided'}), 401
             
         # Get user from token
         user = get_user_from_token(token)
@@ -214,8 +233,10 @@ def update_ticket(ticket_id):
         if not data:
             return jsonify({'error': 'No data provided'}), 400
             
-        # Create a new Supabase client with the token
-        client = supabase.auth.set_session(token)
+        # Get Supabase client with session
+        client = get_supabase_client(token, refresh_token)
+        if not client:
+            return jsonify({'error': 'Failed to initialize Supabase client'}), 500
         
         # Check if ticket exists and user has access
         existing_ticket = (

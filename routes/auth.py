@@ -88,6 +88,7 @@ def login():
         if session and user:
             return jsonify({
                 'access_token': session.access_token,
+                'refresh_token': session.refresh_token,
                 'user': {
                     'email': user.email,
                     'role': user.user_metadata.get('role', 'customer')

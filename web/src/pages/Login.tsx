@@ -38,8 +38,9 @@ const Login: React.FC<LoginProps> = ({ setIsAuthenticated }) => {
       const data = await response.json();
 
       if (response.ok) {
-        // Store the Supabase token with Bearer prefix
+        // Store the tokens and user info
         localStorage.setItem('token', `Bearer ${data.access_token}`);
+        localStorage.setItem('refresh_token', data.refresh_token);
         localStorage.setItem('userRole', data.user.role);
         localStorage.setItem('userEmail', data.user.email);
         setIsAuthenticated(true);
