@@ -1,18 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import {
-  Container,
-  Paper,
-  TextField,
-  Button,
-  Typography,
-  Box,
-  Alert,
-  FormControl,
-  InputLabel,
-  Select,
-  MenuItem,
-} from '@mui/material';
+import { Card } from 'primereact/card';
+import { InputTextarea } from 'primereact/inputtextarea';
+import { Button } from 'primereact/button';
+import { Message } from 'primereact/message';
+import { Dropdown } from 'primereact/dropdown';
+import { ProgressSpinner } from 'primereact/progressspinner';
 
 interface Ticket {
   id: number;
@@ -22,6 +15,18 @@ interface Ticket {
   created_at: string;
   username: string;
 }
+
+interface StatusOption {
+  label: string;
+  value: string;
+}
+
+const statusOptions: StatusOption[] = [
+  { label: 'Open', value: 'open' },
+  { label: 'In Progress', value: 'in_progress' },
+  { label: 'Resolved', value: 'resolved' },
+  { label: 'Closed', value: 'closed' }
+];
 
 const EditTicket: React.FC = () => {
   const navigate = useNavigate();
@@ -43,9 +48,17 @@ const EditTicket: React.FC = () => {
     const fetchTicket = async () => {
       try {
         const token = localStorage.getItem('token');
+        const refreshToken = localStorage.getItem('refresh_token');
+        
+        if (!token || !refreshToken) {
+          setError('Authentication tokens not found');
+          return;
+        }
+
         const response = await fetch(`http://localhost:5001/tickets/${ticketId}`, {
           headers: {
-            Authorization: `Bearer ${token}`,
+            Authorization: token,
+            'X-Refresh-Token': refreshToken,
           },
         });
 
@@ -75,6 +88,13 @@ const EditTicket: React.FC = () => {
 
     try {
       const token = localStorage.getItem('token');
+      const refreshToken = localStorage.getItem('refresh_token');
+      
+      if (!token || !refreshToken) {
+        setError('Authentication tokens not found');
+        return;
+      }
+
       const updateData = userRole === 'agent'
         ? formData
         : { description: formData.description };
@@ -83,7 +103,8 @@ const EditTicket: React.FC = () => {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`,
+          Authorization: token,
+          'X-Refresh-Token': refreshToken,
         },
         body: JSON.stringify(updateData),
       });
@@ -102,81 +123,73 @@ const EditTicket: React.FC = () => {
 
   if (!ticket) {
     return (
-      <Container maxWidth="sm">
-        <Box sx={{ mt: 4 }}>
-          <Typography>Loading...</Typography>
-        </Box>
-      </Container>
+      <div className="flex align-items-center justify-content-center min-h-screen">
+        <ProgressSpinner />
+      </div>
     );
   }
 
   return (
-    <Container maxWidth="sm">
-      <Box sx={{ mt: 4 }}>
-        <Paper elevation={3} sx={{ p: 4 }}>
-          <Typography variant="h4" gutterBottom>
-            Edit Ticket
-          </Typography>
+    <div className="flex align-items-center justify-content-center min-h-screen">
+      <div className="w-full md:w-8 lg:w-6">
+        <Card title="Edit Ticket" className="shadow-2">
           {error && (
-            <Alert severity="error" sx={{ mb: 2 }}>
-              {error}
-            </Alert>
+            <Message severity="error" text={error} className="mb-3 w-full" />
           )}
-          <form onSubmit={handleSubmit}>
-            <Typography variant="subtitle1" gutterBottom>
-              Title: {ticket.title}
-            </Typography>
-            <Typography variant="body2" color="text.secondary" gutterBottom>
-              Created by: {ticket.username}
-            </Typography>
-            <TextField
-              fullWidth
-              label="Description"
-              margin="normal"
-              required
-              multiline
-              rows={4}
-              value={formData.description}
-              onChange={(e) =>
-                setFormData({ ...formData, description: e.target.value })
-              }
-            />
+          <form onSubmit={handleSubmit} className="flex flex-column gap-3">
+            <div className="mb-3">
+              <h2 className="text-xl font-bold m-0">{ticket.title}</h2>
+              <p className="text-500 mt-2">Created by: {ticket.username}</p>
+            </div>
+
+            <div className="p-float-label">
+              <InputTextarea
+                id="description"
+                value={formData.description}
+                onChange={(e) =>
+                  setFormData({ ...formData, description: e.target.value })
+                }
+                rows={4}
+                className="w-full"
+                required
+                autoResize
+              />
+              <label htmlFor="description">Description</label>
+            </div>
+
             {userRole === 'agent' && (
-              <FormControl fullWidth margin="normal">
-                <InputLabel>Status</InputLabel>
-                <Select
+              <div className="p-float-label">
+                <Dropdown
+                  id="status"
                   value={formData.status}
-                  label="Status"
-                  onChange={(e) =>
-                    setFormData({ ...formData, status: e.target.value })
-                  }
-                >
-                  <MenuItem value="open">Open</MenuItem>
-                  <MenuItem value="in_progress">In Progress</MenuItem>
-                  <MenuItem value="resolved">Resolved</MenuItem>
-                  <MenuItem value="closed">Closed</MenuItem>
-                </Select>
-              </FormControl>
+                  onChange={(e) => setFormData({ ...formData, status: e.value })}
+                  options={statusOptions}
+                  optionLabel="label"
+                  className="w-full"
+                />
+                <label htmlFor="status">Status</label>
+              </div>
             )}
-            <Box sx={{ mt: 3, display: 'flex', gap: 2 }}>
+
+            <div className="flex gap-2 mt-3">
               <Button
-                variant="contained"
-                color="primary"
+                label="Update Ticket"
+                icon="pi pi-check"
                 type="submit"
-              >
-                Update Ticket
-              </Button>
+              />
               <Button
-                variant="outlined"
+                label="Cancel"
+                icon="pi pi-times"
+                severity="secondary"
+                outlined
+                type="button"
                 onClick={() => navigate('/dashboard')}
-              >
-                Cancel
-              </Button>
-            </Box>
+              />
+            </div>
           </form>
-        </Paper>
-      </Box>
-    </Container>
+        </Card>
+      </div>
+    </div>
   );
 };
 

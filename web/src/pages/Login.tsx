@@ -1,14 +1,9 @@
 import React, { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
-import {
-  Container,
-  Paper,
-  TextField,
-  Button,
-  Typography,
-  Box,
-  Alert,
-} from '@mui/material';
+import { Card } from 'primereact/card';
+import { InputText } from 'primereact/inputtext';
+import { Button } from 'primereact/button';
+import { Message } from 'primereact/message';
 
 interface LoginProps {
   setIsAuthenticated: (value: boolean) => void;
@@ -17,7 +12,7 @@ interface LoginProps {
 const Login: React.FC<LoginProps> = ({ setIsAuthenticated }) => {
   const navigate = useNavigate();
   const [formData, setFormData] = useState({
-    username: '',
+    email: '',
     password: '',
   });
   const [error, setError] = useState<string | null>(null);
@@ -38,9 +33,11 @@ const Login: React.FC<LoginProps> = ({ setIsAuthenticated }) => {
       const data = await response.json();
 
       if (response.ok) {
+        // Store the tokens and user info
         localStorage.setItem('token', data.access_token);
-        localStorage.setItem('userRole', data.role);
-        localStorage.setItem('username', formData.username);
+        localStorage.setItem('refresh_token', data.refresh_token);
+        localStorage.setItem('userRole', data.user.role);
+        localStorage.setItem('userEmail', data.user.email);
         setIsAuthenticated(true);
         navigate('/dashboard');
       } else {
@@ -53,55 +50,53 @@ const Login: React.FC<LoginProps> = ({ setIsAuthenticated }) => {
   };
 
   return (
-    <Container maxWidth="sm">
-      <Box sx={{ mt: 8 }}>
-        <Paper elevation={3} sx={{ p: 4 }}>
-          <Typography variant="h4" align="center" gutterBottom>
-            Login
-          </Typography>
+    <div className="flex align-items-center justify-content-center min-h-screen">
+      <div className="w-full md:w-5 lg:w-4">
+        <Card title="Login" className="shadow-2">
           {error && (
-            <Alert severity="error" sx={{ mb: 2 }}>
-              {error}
-            </Alert>
+            <Message severity="error" text={error} className="mb-3 w-full" />
           )}
-          <form onSubmit={handleSubmit}>
-            <TextField
-              fullWidth
-              label="Username"
-              margin="normal"
-              required
-              value={formData.username}
-              onChange={(e) =>
-                setFormData({ ...formData, username: e.target.value })
-              }
-            />
-            <TextField
-              fullWidth
-              label="Password"
-              type="password"
-              margin="normal"
-              required
-              value={formData.password}
-              onChange={(e) =>
-                setFormData({ ...formData, password: e.target.value })
-              }
-            />
+          <form onSubmit={handleSubmit} className="flex flex-column gap-2">
+            <div className="p-float-label">
+              <InputText
+                id="email"
+                type="email"
+                value={formData.email}
+                onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
+                  setFormData({ ...formData, email: e.target.value })
+                }
+                className="w-full"
+                required
+              />
+              <label htmlFor="email">Email</label>
+            </div>
+            <div className="p-float-label mt-4">
+              <InputText
+                id="password"
+                type="password"
+                value={formData.password}
+                onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
+                  setFormData({ ...formData, password: e.target.value })
+                }
+                className="w-full"
+                required
+              />
+              <label htmlFor="password">Password</label>
+            </div>
             <Button
-              fullWidth
-              variant="contained"
-              color="primary"
+              label="Login"
               type="submit"
-              sx={{ mt: 3 }}
-            >
-              Login
-            </Button>
-            <Box sx={{ mt: 2, textAlign: 'center' }}>
-              <Link to="/register">Don't have an account? Register</Link>
-            </Box>
+              className="mt-4"
+            />
+            <div className="text-center mt-3">
+              <Link to="/register" className="no-underline text-blue-500 hover:text-blue-700">
+                Don't have an account? Register
+              </Link>
+            </div>
           </form>
-        </Paper>
-      </Box>
-    </Container>
+        </Card>
+      </div>
+    </div>
   );
 };
 

@@ -1,97 +1,162 @@
 from flask import Blueprint, request, jsonify
-from flask_jwt_extended import create_access_token
-from werkzeug.security import generate_password_hash, check_password_hash
+from config import supabase, logger
+import traceback
+from functools import wraps
 
 auth_bp = Blueprint('auth', __name__)
-
-# Temporary user storage (replace with Supabase later)
-users = {
-    'test': {
-        'password': generate_password_hash('test'),
-        'role': 'customer'
-    },
-    'agent': {
-        'password': generate_password_hash('agent'),
-        'role': 'agent'
-    }
-}
 
 @auth_bp.route('/register', methods=['POST'])
 def register():
     try:
         data = request.get_json()
-        print("Register - Received data:", data)  # Debug log
         
         if not data:
             return jsonify({'error': 'No data provided'}), 400
             
-        username = data.get('username')
+        email = data.get('email')
         password = data.get('password')
-        role = data.get('role', 'customer')  # 'customer' or 'agent'
+        role = data.get('role', 'customer')
         
-        if not username or not password:
-            return jsonify({'error': 'Username and password are required'}), 400
+        if not email or not password:
+            return jsonify({'error': 'Email and password are required'}), 400
         
-        if username in users:
-            return jsonify({'error': 'Username already exists'}), 400
+        logger.info(f"Registering user with email: {email}, role: {role}")
         
-        users[username] = {
-            'password': generate_password_hash(password),
-            'role': role
-        }
+        # Register user with Supabase
+        auth_response = supabase.auth.sign_up({
+            "email": email,
+            "password": password,
+            "options": {
+                "data": {
+                    "role": role
+                }
+            }
+        })
         
-        print("Users after registration:", list(users.keys()))  # Debug log
+        # Get the session information
+        session = auth_response.session
         
-        # Create token with username as identity and role as additional claim
-        access_token = create_access_token(
-            identity=username,
-            additional_claims={'role': role}
-        )
+        if session:
+            return jsonify({
+                'message': 'Registration successful',
+                'access_token': session.access_token,
+                'user': {
+                    'email': email,
+                    'role': role
+                }
+            }), 201
+        else:
+            # Registration successful but needs email verification
+            return jsonify({
+                'message': 'Registration successful. Please check your email to verify your account.',
+                'user': {
+                    'email': email,
+                    'role': role
+                }
+            }), 201
         
-        return jsonify({
-            'message': 'User registered successfully',
-            'access_token': access_token,
-            'role': role
-        }), 201
     except Exception as e:
-        print("Register error:", str(e))  # Debug log
-        return jsonify({'error': str(e)}), 500
+        logger.error(f"Registration error: {str(e)}")
+        logger.error(traceback.format_exc())
+        return jsonify({'error': str(e)}), 400
 
 @auth_bp.route('/login', methods=['POST'])
 def login():
     try:
         data = request.get_json()
-        print("Login - Received data:", data)  # Debug log
-        print("Available users:", list(users.keys()))  # Debug log
         
         if not data:
             return jsonify({'error': 'No data provided'}), 400
             
-        username = data.get('username')
+        email = data.get('email')
         password = data.get('password')
         
-        if not username or not password:
-            return jsonify({'error': 'Username and password are required'}), 400
+        if not email or not password:
+            return jsonify({'error': 'Email and password are required'}), 400
         
-        user = users.get(username)
-        if not user:
-            print(f"User {username} not found")  # Debug log
-            return jsonify({'error': 'Invalid credentials'}), 401
+        logger.info(f"Attempting login for user: {email}")
+        
+        # Sign in with Supabase
+        auth_response = supabase.auth.sign_in_with_password({
+            "email": email,
+            "password": password
+        })
+        
+        # Get the session and user information
+        session = auth_response.session
+        user = auth_response.user
+        
+        if session and user:
+            # Get the role from user metadata
+            role = user.user_metadata.get('role', 'customer')
+            logger.info(f"User role from metadata: {role}")
             
-        if not check_password_hash(user['password'], password):
-            print(f"Invalid password for user {username}")  # Debug log
-            return jsonify({'error': 'Invalid credentials'}), 401
+            return jsonify({
+                'access_token': session.access_token,
+                'refresh_token': session.refresh_token,
+                'user': {
+                    'email': user.email,
+                    'role': role
+                }
+            })
+        else:
+            return jsonify({'error': 'Login failed'}), 401
         
-        # Create token with username as identity and role as additional claim
-        access_token = create_access_token(
-            identity=username,
-            additional_claims={'role': user['role']}
-        )
-        
-        return jsonify({
-            'access_token': access_token,
-            'role': user['role']
-        }), 200
     except Exception as e:
-        print("Login error:", str(e))  # Debug log
-        return jsonify({'error': str(e)}), 500 
+        logger.error(f"Login error: {str(e)}")
+        logger.error(traceback.format_exc())
+        return jsonify({'error': str(e)}), 401
+
+def get_user_from_token(request):
+    auth_header = request.headers.get('Authorization')
+    refresh_token = request.headers.get('X-Refresh-Token')
+    
+    if not auth_header:
+        raise Exception('No token provided')
+    
+    if not auth_header.startswith('Bearer '):
+        raise Exception('Invalid token format. Must be a Bearer token')
+    
+    if not refresh_token:
+        raise Exception('No refresh token provided')
+    
+    token = auth_header.replace('Bearer ', '')
+    
+    try:
+        # Set up the Supabase session with both tokens
+        session = supabase.auth.set_session(token, refresh_token)
+        
+        # Get user information from Supabase using the session
+        user = session.user
+        if not user:
+            raise Exception('Invalid session')
+            
+        return {
+            'email': user.email,
+            'role': user.user_metadata.get('role', 'customer')
+        }
+    except Exception as e:
+        logger.error(f"Error in get_user_from_token: {str(e)}")
+        raise Exception('Invalid or expired token')
+
+def requires_auth(f):
+    @wraps(f)
+    def decorated(*args, **kwargs):
+        try:
+            get_user_from_token(request)
+            return f(*args, **kwargs)
+        except Exception as e:
+            return jsonify({'error': str(e)}), 401
+    return decorated
+
+def requires_agent(f):
+    @wraps(f)
+    def decorated(*args, **kwargs):
+        try:
+            user = get_user_from_token(request)
+            if user['role'] != 'agent':
+                return jsonify({'error': 'Unauthorized. Agent role required.'}), 403
+            return f(*args, **kwargs)
+        except Exception as e:
+            return jsonify({'error': str(e)}), 401
+    return decorated 

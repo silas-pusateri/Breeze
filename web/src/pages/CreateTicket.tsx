@@ -1,94 +1,113 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import {
-  Container,
-  Paper,
-  TextField,
-  Button,
-  Typography,
-  Box,
-} from '@mui/material';
+import { Card } from 'primereact/card';
+import { InputText } from 'primereact/inputtext';
+import { InputTextarea } from 'primereact/inputtextarea';
+import { Button } from 'primereact/button';
+import { Message } from 'primereact/message';
 
-const CreateTicket = () => {
+const CreateTicket: React.FC = () => {
   const navigate = useNavigate();
   const [formData, setFormData] = useState({
     title: '',
     description: '',
   });
+  const [error, setError] = useState<string | null>(null);
+  const token = localStorage.getItem('token');
 
-  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    setError(null);
+
     try {
+      if (!token) {
+        setError('No authentication token found');
+        return;
+      }
+
+      const refreshToken = localStorage.getItem('refresh_token');
+      if (!refreshToken) {
+        setError('No refresh token found');
+        return;
+      }
+
       const response = await fetch('http://localhost:5001/tickets', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          Authorization: `Bearer ${localStorage.getItem('token')}`,
+          'Authorization': token,
+          'X-Refresh-Token': refreshToken,
         },
         body: JSON.stringify(formData),
       });
 
-      if (response.ok) {
-        navigate('/dashboard');
-      } else {
+      if (!response.ok) {
         const errorData = await response.json();
-        alert(errorData.error || 'Failed to create ticket');
+        throw new Error(errorData.error || 'Failed to create ticket');
       }
+
+      navigate('/dashboard');
     } catch (error) {
       console.error('Error creating ticket:', error);
-      alert('Network error while creating ticket');
+      setError(error instanceof Error ? error.message : 'Failed to create ticket');
     }
   };
 
   return (
-    <Container maxWidth="md">
-      <Box sx={{ mt: 4 }}>
-        <Typography variant="h4" gutterBottom>
-          Create New Ticket
-        </Typography>
-        <Paper elevation={3} sx={{ p: 4 }}>
-          <Box component="form" onSubmit={handleSubmit}>
-            <TextField
-              fullWidth
-              label="Title"
-              margin="normal"
-              required
-              value={formData.title}
-              onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
-                setFormData({ ...formData, title: e.target.value })
-              }
-            />
-            <TextField
-              fullWidth
-              label="Description"
-              margin="normal"
-              required
-              multiline
-              rows={4}
-              value={formData.description}
-              onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
-                setFormData({ ...formData, description: e.target.value })
-              }
-            />
-            <Box sx={{ mt: 3, display: 'flex', gap: 2 }}>
+    <div className="flex align-items-center justify-content-center min-h-screen">
+      <div className="w-full md:w-8 lg:w-6">
+        <Card title="Create Ticket" className="shadow-2">
+          {error && (
+            <Message severity="error" text={error} className="mb-3 w-full" />
+          )}
+          <form onSubmit={handleSubmit} className="flex flex-column gap-3">
+            <div className="p-float-label">
+              <InputText
+                id="title"
+                value={formData.title}
+                onChange={(e) =>
+                  setFormData({ ...formData, title: e.target.value })
+                }
+                className="w-full"
+                required
+              />
+              <label htmlFor="title">Title</label>
+            </div>
+
+            <div className="p-float-label">
+              <InputTextarea
+                id="description"
+                value={formData.description}
+                onChange={(e) =>
+                  setFormData({ ...formData, description: e.target.value })
+                }
+                rows={4}
+                className="w-full"
+                required
+                autoResize
+              />
+              <label htmlFor="description">Description</label>
+            </div>
+
+            <div className="flex gap-2 mt-3">
               <Button
-                variant="contained"
-                color="primary"
+                label="Create Ticket"
+                icon="pi pi-plus"
                 type="submit"
-              >
-                Create Ticket
-              </Button>
+              />
               <Button
-                variant="outlined"
+                label="Cancel"
+                icon="pi pi-times"
+                severity="secondary"
+                outlined
+                type="button"
                 onClick={() => navigate('/dashboard')}
-              >
-                Cancel
-              </Button>
-            </Box>
-          </Box>
-        </Paper>
-      </Box>
-    </Container>
+              />
+            </div>
+          </form>
+        </Card>
+      </div>
+    </div>
   );
 };
 

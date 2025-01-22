@@ -1,28 +1,29 @@
 import React, { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
-import {
-  Container,
-  Paper,
-  TextField,
-  Button,
-  Typography,
-  Box,
-  FormControl,
-  InputLabel,
-  Select,
-  MenuItem,
-  Alert,
-  SelectChangeEvent,
-} from '@mui/material';
+import { Card } from 'primereact/card';
+import { InputText } from 'primereact/inputtext';
+import { Button } from 'primereact/button';
+import { Message } from 'primereact/message';
+import { Dropdown } from 'primereact/dropdown';
 
 interface RegisterProps {
   setIsAuthenticated: (value: boolean) => void;
 }
 
+interface RoleOption {
+  label: string;
+  value: string;
+}
+
+const roleOptions: RoleOption[] = [
+  { label: 'Customer', value: 'customer' },
+  { label: 'Service Agent', value: 'agent' }
+];
+
 const Register: React.FC<RegisterProps> = ({ setIsAuthenticated }) => {
   const navigate = useNavigate();
   const [formData, setFormData] = useState({
-    username: '',
+    email: '',
     password: '',
     role: 'customer',
   });
@@ -44,10 +45,16 @@ const Register: React.FC<RegisterProps> = ({ setIsAuthenticated }) => {
       const data = await response.json();
 
       if (response.ok) {
-        localStorage.setItem('token', data.access_token);
-        localStorage.setItem('role', data.role);
-        setIsAuthenticated(true);
-        navigate('/dashboard');
+        if (data.access_token) {
+          localStorage.setItem('token', `Bearer ${data.access_token}`);
+          localStorage.setItem('refresh_token', data.refresh_token);
+          localStorage.setItem('userRole', data.user.role);
+          localStorage.setItem('userEmail', data.user.email);
+          setIsAuthenticated(true);
+          navigate('/dashboard');
+        } else {
+          setError(data.message);
+        }
       } else {
         setError(data.error || 'Registration failed');
       }
@@ -58,68 +65,69 @@ const Register: React.FC<RegisterProps> = ({ setIsAuthenticated }) => {
   };
 
   return (
-    <Container maxWidth="sm">
-      <Box sx={{ mt: 8 }}>
-        <Paper elevation={3} sx={{ p: 4 }}>
-          <Typography variant="h4" align="center" gutterBottom>
-            Register
-          </Typography>
+    <div className="flex align-items-center justify-content-center min-h-screen">
+      <div className="w-full md:w-5 lg:w-4">
+        <Card title="Register" className="shadow-2">
           {error && (
-            <Alert severity="error" sx={{ mb: 2 }}>
-              {error}
-            </Alert>
+            <Message severity="error" text={error} className="mb-3 w-full" />
           )}
-          <Box component="form" onSubmit={handleSubmit}>
-            <TextField
-              fullWidth
-              label="Username"
-              margin="normal"
-              required
-              value={formData.username}
-              onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
-                setFormData({ ...formData, username: e.target.value })
-              }
-            />
-            <TextField
-              fullWidth
-              label="Password"
-              type="password"
-              margin="normal"
-              required
-              value={formData.password}
-              onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
-                setFormData({ ...formData, password: e.target.value })
-              }
-            />
-            <FormControl fullWidth margin="normal">
-              <InputLabel>Role</InputLabel>
-              <Select
-                value={formData.role}
-                label="Role"
-                onChange={(e: SelectChangeEvent) =>
-                  setFormData({ ...formData, role: e.target.value })
+          <form onSubmit={handleSubmit} className="flex flex-column gap-3">
+            <div className="p-float-label">
+              <InputText
+                id="email"
+                type="email"
+                value={formData.email}
+                onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
+                  setFormData({ ...formData, email: e.target.value })
                 }
-              >
-                <MenuItem value="customer">Customer</MenuItem>
-                <MenuItem value="agent">Service Agent</MenuItem>
-              </Select>
-            </FormControl>
+                className="w-full"
+                required
+              />
+              <label htmlFor="email">Email</label>
+            </div>
+
+            <div className="p-float-label">
+              <InputText
+                id="password"
+                type="password"
+                value={formData.password}
+                onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
+                  setFormData({ ...formData, password: e.target.value })
+                }
+                className="w-full"
+                required
+              />
+              <label htmlFor="password">Password</label>
+            </div>
+
+            <div className="p-float-label">
+              <Dropdown
+                id="role"
+                value={formData.role}
+                onChange={(e) => setFormData({ ...formData, role: e.value })}
+                options={roleOptions}
+                optionLabel="label"
+                className="w-full"
+              />
+              <label htmlFor="role">Role</label>
+            </div>
+
             <Button
-              fullWidth
-              variant="contained"
-              color="primary"
+              label="Register"
               type="submit"
-              sx={{ mt: 3 }}
-            >
-              Register
-            </Button>
-            <Box sx={{ mt: 2, textAlign: 'center' }}>
-              <Link to="/login">Already have an account? Login</Link>
-            </Box>
-          </Box>
-        </Paper>
-      </Box>
-    </Container>
+              icon="pi pi-user-plus"
+              className="mt-2"
+            />
+
+            <div className="text-center">
+              <Link to="/login" className="no-underline text-blue-500 hover:text-blue-700">
+                Already have an account? Login
+              </Link>
+            </div>
+          </form>
+        </Card>
+      </div>
+    </div>
   );
 };
 

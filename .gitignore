@@ -170,6 +170,9 @@ cython_debug/
 # PyPI configuration file
 .pypirc
 
+# Environment variables
+*.env
+
 # Frontend ignores
 web/node_modules
 web/dist
@@ -181,3 +184,4 @@ web/.env.production.local
 web/npm-debug.log*
 web/yarn-debug.log*
 web/yarn-error.log*
+schema.sql

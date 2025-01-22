@@ -1,0 +1,106 @@
+:root {
+    /* Override PrimeReact's primary colors with our mint theme */
+    --primary-50: #f0faf8;
+    --primary-100: #d2f3ed;
+    --primary-200: #a6e7db;
+    --primary-300: #79dbc9;
+    --primary-400: #4dcfb7;
+    --primary-500: #34b397;
+    --primary-600: #2a8f79;
+    --primary-700: #1f6b5b;
+    --primary-800: #15473c;
+    --primary-900: #0a231e;
+
+    /* Keep surface colors from PrimeReact's default theme */
+    --surface-ground: #f8f9fa;
+    --surface-section: #ffffff;
+    --surface-card: #ffffff;
+    --surface-overlay: #ffffff;
+    --surface-border: #dfe7ef;
+    --text-color: #495057;
+    --text-color-secondary: #6c757d;
+}
+
+/* Override PrimeReact component styles */
+.p-button.p-button-primary {
+    background: var(--primary-500);
+    border-color: var(--primary-500);
+}
+
+.p-button.p-button-primary:hover {
+    background: var(--primary-600);
+    border-color: var(--primary-600);
+}
+
+.p-menubar {
+    background: var(--primary-500);
+    border: none;
+    border-radius: 0;
+}
+
+.p-menubar .p-menubar-root-list > .p-menuitem > .p-menuitem-link .p-menuitem-text,
+.p-menubar .p-menubar-root-list > .p-menuitem > .p-menuitem-link .p-menuitem-icon,
+.p-menubar .p-menubar-start {
+    color: #ffffff;
+}
+
+.p-menubar .p-menubar-root-list > .p-menuitem > .p-menuitem-link:not(.p-disabled):hover {
+    background: var(--primary-600);
+}
+
+.p-card {
+    border-radius: 12px;
+    box-shadow: 0 2px 12px rgba(0, 0, 0, 0.1) !important;
+}
+
+.p-datatable .p-datatable-header {
+    background: var(--primary-100);
+}
+
+.p-datatable .p-datatable-thead > tr > th {
+    background: var(--primary-100);
+}
+
+/* Status badge colors */
+.status-badge.status-open {
+    background-color: var(--primary-100);
+    color: var(--primary-600);
+}
+
+.status-badge.status-in_progress {
+    background-color: var(--yellow-100);
+    color: var(--yellow-600);
+}
+
+.status-badge.status-resolved {
+    background-color: var(--green-100);
+    color: var(--green-600);
+}
+
+.status-badge.status-closed {
+    background-color: var(--surface-200);
+    color: var(--surface-700);
+}
+
+/* Form styles */
+.p-inputtext:enabled:focus {
+    border-color: var(--primary-500);
+    box-shadow: 0 0 0 1px var(--primary-500);
+}
+
+.p-float-label input:focus ~ label,
+.p-float-label textarea:focus ~ label,
+.p-float-label .p-inputwrapper-focus ~ label {
+    color: var(--primary-500);
+}
+
+/* Toast customization */
+.p-toast .p-toast-message.p-toast-message-success {
+    background: var(--primary-100);
+    border-left-color: var(--primary-500);
+}
+
+/* Button hover effects */
+.p-button:not(.p-button-outlined):not(.p-button-text):hover {
+    filter: brightness(95%);
+} 
