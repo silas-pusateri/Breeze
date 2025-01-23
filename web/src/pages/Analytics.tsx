@@ -59,29 +59,94 @@ interface NewWidgetState {
   ticketParams: TicketParams;
 }
 
-const SortableWidget = ({ widget }: { widget: DashboardWidget }) => {
+const SortableWidget = ({ widget, onDelete }: { widget: DashboardWidget; onDelete: (id: string) => void }) => {
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const {
     attributes,
     listeners,
     setNodeRef,
     transform,
     transition,
-  } = useSortable({ id: widget.id });
+  } = useSortable({
+    id: widget.id,
+    disabled: false
+  });
 
   const style = {
     transform: CSS.Transform.toString(transform),
     transition,
   };
 
+  const handleDeleteClick = (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setShowDeleteConfirm(true);
+  };
+
+  const handleConfirmDelete = () => {
+    setShowDeleteConfirm(false);
+    onDelete(widget.id);
+  };
+
   return (
     <div
       ref={setNodeRef}
       style={style}
-      {...attributes}
-      {...listeners}
       className={`widget-wrapper widget-${widget.size}`}
     >
-      <Card title={widget.title}>
+      <Dialog
+        visible={showDeleteConfirm}
+        onHide={() => setShowDeleteConfirm(false)}
+        header="Confirm Delete"
+        modal
+        footer={
+          <div>
+            <Button
+              label="Cancel"
+              icon="pi pi-times"
+              onClick={() => setShowDeleteConfirm(false)}
+              className="p-button-text"
+            />
+            <Button
+              label="Delete"
+              icon="pi pi-trash"
+              onClick={handleConfirmDelete}
+              severity="danger"
+              autoFocus
+            />
+          </div>
+        }
+      >
+        <p>Are you sure you want to delete the widget "{widget.title}"?</p>
+      </Dialog>
+
+      <Card 
+        title={widget.title}
+        header={
+          <div className="flex align-items-center justify-content-between w-full">
+            <div className="flex align-items-center gap-2">
+              <Button
+                {...attributes}
+                {...listeners}
+                icon="pi pi-bars"
+                text
+                rounded
+                className="cursor-move p-button-secondary"
+                tooltip="Drag to reorder"
+              />
+              <h3 className="m-0">{widget.title}</h3>
+            </div>
+            <Button
+              icon="pi pi-trash"
+              severity="danger"
+              text
+              rounded
+              onClick={handleDeleteClick}
+              tooltip="Delete Widget"
+            />
+          </div>
+        }
+      >
         {widget.type === 'chart' && (
           <Chart 
             type="bar" 
@@ -480,19 +545,33 @@ const Analytics: React.FC = () => {
     });
   };
 
+  const handleDeleteWidget = async (widgetId: string) => {
+    console.log('Deleting widget:', widgetId);
+    try {
+      // Remove from state first for immediate UI feedback
+      setWidgets(currentWidgets => currentWidgets.filter(w => w.id !== widgetId));
+      
+      // The widget will be automatically removed from the database
+      // through our existing save effect that triggers on widget state changes
+    } catch (error) {
+      console.error('Error deleting widget:', error);
+      // If there's an error, we could potentially show a toast notification here
+    }
+  };
+
   return (
     <div className="p-4">
       <div className="flex flex-column gap-4">
         <div className="flex align-items-center justify-content-between mb-4">
           <h1 className="text-4xl font-bold m-0">Analytics Dashboard</h1>
           {isAgent ? (
-            <Button 
-              label="Create Widget" 
-              icon="pi pi-plus" 
+          <Button 
+            label="Create Widget" 
+            icon="pi pi-plus" 
               severity="success"
               size="large"
-              onClick={() => setShowCreateDialog(true)}
-            />
+            onClick={() => setShowCreateDialog(true)}
+          />
           ) : (
             <div className="text-500">Agent access required to create widgets</div>
           )}
@@ -505,117 +584,121 @@ const Analytics: React.FC = () => {
           </div>
         ) : (
           <>
-            <Dialog 
-              header="Create Dashboard Widget" 
-              visible={showCreateDialog} 
-              onHide={() => setShowCreateDialog(false)}
-              style={{ width: '450px' }}
-            >
-              <div className="p-fluid">
-                <div className="field">
-                  <label htmlFor="title">Widget Title</label>
-                  <InputText
-                    id="title"
-                    value={newWidget.title || ''}
-                    onChange={(e) => setNewWidget({ ...newWidget, title: e.target.value })}
-                  />
-                </div>
-                <div className="field">
-                  <label htmlFor="type">Widget Type</label>
-                  <Dropdown
-                    id="type"
-                    value={newWidget.type}
-                    options={[
-                      { label: 'Chart', value: 'chart' },
-                      { label: 'Statistics', value: 'stats' },
-                      { label: 'Table', value: 'table' }
-                    ]}
-                    onChange={(e) => setNewWidget({ ...newWidget, type: e.value })}
-                  />
-                </div>
-                <div className="field">
-                  <label htmlFor="size">Widget Size</label>
-                  <Dropdown
-                    id="size"
-                    value={newWidget.size}
-                    options={[
-                      { label: 'Small', value: 'small' },
-                      { label: 'Medium', value: 'medium' },
-                      { label: 'Large', value: 'large' }
-                    ]}
-                    onChange={(e) => setNewWidget({ ...newWidget, size: e.value })}
-                  />
-                </div>
-                <div className="field">
-                  <label htmlFor="field">Ticket Field</label>
-                  <Dropdown
-                    id="field"
-                    value={newWidget.ticketParams?.field}
-                    options={[
-                      { label: 'Status', value: 'status' },
-                      { label: 'Priority', value: 'priority' },
-                      { label: 'Category', value: 'category' },
-                      { label: 'Created Date', value: 'created_date' }
-                    ]}
-                    onChange={(e) => setNewWidget({ 
-                      ...newWidget, 
-                      ticketParams: { ...newWidget.ticketParams, field: e.value }
-                    })}
-                  />
-                </div>
-                <div className="field">
-                  <label htmlFor="aggregation">Aggregation</label>
-                  <Dropdown
-                    id="aggregation"
-                    value={newWidget.ticketParams?.aggregation}
-                    options={[
-                      { label: 'Count', value: 'count' },
-                      { label: 'Sum', value: 'sum' },
-                      { label: 'Average', value: 'average' }
-                    ]}
-                    onChange={(e) => setNewWidget({ 
-                      ...newWidget, 
-                      ticketParams: { ...newWidget.ticketParams, aggregation: e.value }
-                    })}
-                  />
-                </div>
-                <div className="field">
-                  <label htmlFor="timeRange">Time Range</label>
-                  <Dropdown
-                    id="timeRange"
-                    value={newWidget.ticketParams?.timeRange}
-                    options={[
-                      { label: 'Last Day', value: 'day' },
-                      { label: 'Last Week', value: 'week' },
-                      { label: 'Last Month', value: 'month' }
-                    ]}
-                    onChange={(e) => setNewWidget({ 
-                      ...newWidget, 
-                      ticketParams: { ...newWidget.ticketParams, timeRange: e.value }
-                    })}
-                  />
-                </div>
-                <Button label="Create" onClick={handleCreateWidget} />
-              </div>
-            </Dialog>
-
-            <div className="dashboard-grid">
-              {/* @ts-ignore */}
-              <DndContext
-                sensors={sensors}
-                collisionDetection={closestCenter}
-                onDragEnd={handleDragEnd}
-              >
-                <SortableContext
-                  items={widgets.map(w => w.id)}
-                  strategy={verticalListSortingStrategy}
-                >
-                  {widgets.map((widget) => (
-                    <SortableWidget key={widget.id} widget={widget} />
-                  ))}
-                </SortableContext>
-              </DndContext>
+        <Dialog 
+          header="Create Dashboard Widget" 
+          visible={showCreateDialog} 
+          onHide={() => setShowCreateDialog(false)}
+          style={{ width: '450px' }}
+        >
+          <div className="p-fluid">
+            <div className="field">
+              <label htmlFor="title">Widget Title</label>
+              <InputText
+                id="title"
+                value={newWidget.title || ''}
+                onChange={(e) => setNewWidget({ ...newWidget, title: e.target.value })}
+              />
             </div>
+            <div className="field">
+              <label htmlFor="type">Widget Type</label>
+              <Dropdown
+                id="type"
+                value={newWidget.type}
+                options={[
+                  { label: 'Chart', value: 'chart' },
+                  { label: 'Statistics', value: 'stats' },
+                  { label: 'Table', value: 'table' }
+                ]}
+                onChange={(e) => setNewWidget({ ...newWidget, type: e.value })}
+              />
+            </div>
+            <div className="field">
+              <label htmlFor="size">Widget Size</label>
+              <Dropdown
+                id="size"
+                value={newWidget.size}
+                options={[
+                  { label: 'Small', value: 'small' },
+                  { label: 'Medium', value: 'medium' },
+                  { label: 'Large', value: 'large' }
+                ]}
+                onChange={(e) => setNewWidget({ ...newWidget, size: e.value })}
+              />
+            </div>
+            <div className="field">
+              <label htmlFor="field">Ticket Field</label>
+              <Dropdown
+                id="field"
+                value={newWidget.ticketParams?.field}
+                options={[
+                  { label: 'Status', value: 'status' },
+                  { label: 'Priority', value: 'priority' },
+                  { label: 'Category', value: 'category' },
+                  { label: 'Created Date', value: 'created_date' }
+                ]}
+                onChange={(e) => setNewWidget({ 
+                  ...newWidget, 
+                  ticketParams: { ...newWidget.ticketParams, field: e.value }
+                })}
+              />
+            </div>
+            <div className="field">
+              <label htmlFor="aggregation">Aggregation</label>
+              <Dropdown
+                id="aggregation"
+                value={newWidget.ticketParams?.aggregation}
+                options={[
+                  { label: 'Count', value: 'count' },
+                  { label: 'Sum', value: 'sum' },
+                  { label: 'Average', value: 'average' }
+                ]}
+                onChange={(e) => setNewWidget({ 
+                  ...newWidget, 
+                  ticketParams: { ...newWidget.ticketParams, aggregation: e.value }
+                })}
+              />
+            </div>
+            <div className="field">
+              <label htmlFor="timeRange">Time Range</label>
+              <Dropdown
+                id="timeRange"
+                value={newWidget.ticketParams?.timeRange}
+                options={[
+                  { label: 'Last Day', value: 'day' },
+                  { label: 'Last Week', value: 'week' },
+                  { label: 'Last Month', value: 'month' }
+                ]}
+                onChange={(e) => setNewWidget({ 
+                  ...newWidget, 
+                  ticketParams: { ...newWidget.ticketParams, timeRange: e.value }
+                })}
+              />
+            </div>
+            <Button label="Create" onClick={handleCreateWidget} />
+          </div>
+        </Dialog>
+
+        <div className="dashboard-grid">
+              {/* @ts-ignore */}
+          <DndContext
+            sensors={sensors}
+            collisionDetection={closestCenter}
+            onDragEnd={handleDragEnd}
+          >
+            <SortableContext
+              items={widgets.map(w => w.id)}
+              strategy={verticalListSortingStrategy}
+            >
+              {widgets.map((widget) => (
+                    <SortableWidget 
+                      key={widget.id} 
+                      widget={widget}
+                      onDelete={handleDeleteWidget}
+                    />
+              ))}
+            </SortableContext>
+          </DndContext>
+        </div>
           </>
         )}
       </div>
