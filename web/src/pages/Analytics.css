@@ -1,0 +1,45 @@
+.dashboard-grid {
+  display: grid;
+  grid-template-columns: repeat(12, 1fr);
+  gap: 20px;
+  padding: 20px 0;
+}
+
+.widget-wrapper {
+  transition: transform 0.2s;
+}
+
+.widget-small {
+  grid-column: span 4;
+}
+
+.widget-medium {
+  grid-column: span 6;
+}
+
+.widget-large {
+  grid-column: span 12;
+}
+
+.widget-wrapper:hover {
+  transform: translateY(-2px);
+}
+
+.stats-container {
+  padding: 1rem;
+  text-align: center;
+}
+
+.field {
+  margin-bottom: 1rem;
+}
+
+.field label {
+  display: block;
+  margin-bottom: 0.5rem;
+  font-weight: 500;
+}
+
+.cursor-move {
+  cursor: move !important;
+} 
