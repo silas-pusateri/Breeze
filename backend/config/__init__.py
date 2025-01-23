@@ -25,4 +25,4 @@ try:
     logger.info("Supabase client initialized successfully")
 except Exception as e:
     logger.error(f"Failed to initialize Supabase client: {str(e)}")
-    raise 
+    raise
