@@ -14,6 +14,7 @@ import "./styles/theme.css";
 import Login from './pages/Login';
 import Register from './pages/Register';
 import Dashboard from './pages/Dashboard';
+import Analytics from './pages/Analytics';
 import CreateTicket from './pages/CreateTicket';
 import EditTicket from './pages/EditTicket';
 import KnowledgeBase from './pages/KnowledgeBase';
@@ -32,6 +33,10 @@ const App = () => {
           <Route
             path="/dashboard"
             element={isAuthenticated ? <Dashboard /> : <Navigate to="/login" />}
+          />
+          <Route
+            path="/analytics"
+            element={isAuthenticated ? <Analytics /> : <Navigate to="/login" />}
           />
           <Route
             path="/create-ticket"

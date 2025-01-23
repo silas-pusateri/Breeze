@@ -29,6 +29,11 @@ const Header: React.FC<HeaderProps> = ({ isAuthenticated, setIsAuthenticated }) 
           command: () => navigate('/dashboard'),
         },
         {
+          label: 'Analytics',
+          icon: 'pi pi-chart-bar',
+          command: () => navigate('/analytics'),
+        },
+        {
           label: 'Create Ticket',
           icon: 'pi pi-plus',
           command: () => navigate('/create-ticket'),
