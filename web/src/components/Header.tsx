@@ -1,8 +1,9 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Menubar } from 'primereact/menubar';
 import { Button } from 'primereact/button';
 import { MenuItem } from 'primereact/menuitem';
+import { InputText } from 'primereact/inputtext';
 
 interface HeaderProps {
   isAuthenticated: boolean;
@@ -11,6 +12,7 @@ interface HeaderProps {
 
 const Header: React.FC<HeaderProps> = ({ isAuthenticated, setIsAuthenticated }) => {
   const navigate = useNavigate();
+  const [searchQuery, setSearchQuery] = useState('');
 
   const handleLogout = () => {
     localStorage.removeItem('token');
@@ -21,8 +23,19 @@ const Header: React.FC<HeaderProps> = ({ isAuthenticated, setIsAuthenticated }) 
     navigate('/login');
   };
 
+  const handleSearch = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === 'Enter' && searchQuery.trim()) {
+      navigate(`/search?q=${encodeURIComponent(searchQuery.trim())}`);
+    }
+  };
+
   const mainMenuItems: MenuItem[] = isAuthenticated
     ? [
+        {
+          label: 'Create Ticket',
+          icon: 'pi pi-plus',
+          command: () => navigate('/create-ticket'),
+        },
         {
           label: 'Dashboard',
           icon: 'pi pi-home',
@@ -34,11 +47,6 @@ const Header: React.FC<HeaderProps> = ({ isAuthenticated, setIsAuthenticated }) 
           command: () => navigate('/analytics'),
         },
         {
-          label: 'Create Ticket',
-          icon: 'pi pi-plus',
-          command: () => navigate('/create-ticket'),
-        },
-        {
           label: 'Knowledge Base',
           icon: 'pi pi-book',
           command: () => navigate('/knowledge-base'),
@@ -46,7 +54,26 @@ const Header: React.FC<HeaderProps> = ({ isAuthenticated, setIsAuthenticated }) 
       ]
     : [];
 
-  const start = <div className="text-xl font-bold">Breeze</div>;
+  const start = (
+    <div className="flex items-center flex-grow-1">
+      <div className="text-xl font-bold mr-4">Breeze</div>
+      {isAuthenticated && (
+        <div className="flex justify-content-center w-full">
+          <span className="p-input-icon-left" style={{ width: '30rem' }}>
+            <i className="pi pi-search" />
+            <InputText
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              onKeyDown={handleSearch}
+              placeholder="Search tickets and files..."
+              className="w-full"
+            />
+          </span>
+        </div>
+      )}
+    </div>
+  );
+
   const end = isAuthenticated ? (
     <Button
       label="Logout"
@@ -79,7 +106,7 @@ const Header: React.FC<HeaderProps> = ({ isAuthenticated, setIsAuthenticated }) 
         model={mainMenuItems}
         start={start}
         end={end}
-        className="surface-0 border-none px-4"
+        className="surface-0 border-none px-4 flex align-items-center"
       />
     </div>
   );

@@ -5,7 +5,7 @@ import io
 from datetime import datetime
 from functools import wraps
 from .auth import get_user_from_token, requires_auth, requires_agent
-from config import supabase, logger
+from config import supabase_client, logger
 import traceback
 import base64
 
@@ -39,7 +39,7 @@ def upload_file():
             return jsonify({'error': 'No authorization tokens provided'}), 401
 
         # Set the session first
-        session = supabase.auth.set_session(token, refresh_token)
+        session = supabase_client.auth.set_session(token, refresh_token)
         logger.info(f"Session user metadata: {session.user.user_metadata}")
         logger.info(f"Session user role: {session.user.user_metadata.get('role')}")
         
@@ -81,11 +81,11 @@ def upload_file():
         
         # Log the Supabase client state
         logger.info("About to execute insert...")
-        logger.info(f"Current auth state - has session: {bool(supabase.auth.get_session())}")
+        logger.info(f"Current auth state - has session: {bool(supabase_client.auth.get_session())}")
         logger.info(f"File content preview: {file_content[:100] if isinstance(file_content, str) else '<binary>'}")
         
         result = (
-            supabase
+            supabase_client
             .table('knowledge_files')
             .insert(file_data)
             .execute()
@@ -114,10 +114,10 @@ def list_files():
             return jsonify({'error': 'No authorization tokens provided'}), 401
 
         # Set the session
-        supabase.auth.set_session(token, refresh_token)
+        supabase_client.auth.set_session(token, refresh_token)
         
         result = (
-            supabase
+            supabase_client
             .table('knowledge_files')
             .select('id, filename, file_type, file_size, uploaded_by, uploaded_at')
             .execute()
@@ -143,10 +143,10 @@ def get_file(file_id):
             return jsonify({'error': 'No authorization tokens provided'}), 401
 
         # Set the session
-        supabase.auth.set_session(token, refresh_token)
+        supabase_client.auth.set_session(token, refresh_token)
         
         result = (
-            supabase
+            supabase_client
             .table('knowledge_files')
             .select('*')
             .eq('id', file_id)
@@ -189,10 +189,10 @@ def get_file_content(file_id):
             return jsonify({'error': 'No authorization tokens provided'}), 401
 
         # Set the session
-        supabase.auth.set_session(token, refresh_token)
+        supabase_client.auth.set_session(token, refresh_token)
         
         result = (
-            supabase
+            supabase_client
             .table('knowledge_files')
             .select('*')
             .eq('id', file_id)
@@ -244,10 +244,10 @@ def delete_file(file_id):
             return jsonify({'error': 'No authorization tokens provided'}), 401
 
         # Set the session
-        supabase.auth.set_session(token, refresh_token)
+        supabase_client.auth.set_session(token, refresh_token)
         
         result = (
-            supabase
+            supabase_client
             .table('knowledge_files')
             .delete()
             .eq('id', file_id)

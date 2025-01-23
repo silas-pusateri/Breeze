@@ -18,7 +18,7 @@ if not SUPABASE_URL or not SUPABASE_KEY:
 logger.info(f"Initializing Supabase client with URL: {SUPABASE_URL}")
 try:
     # Initialize Supabase client
-    supabase: Client = create_client(
+    supabase_client: Client = create_client(
         supabase_url=SUPABASE_URL,
         supabase_key=SUPABASE_KEY
     )
@@ -26,3 +26,5 @@ try:
 except Exception as e:
     logger.error(f"Failed to initialize Supabase client: {str(e)}")
     raise
+
+__all__ = ['supabase_client']
