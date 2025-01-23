@@ -7,6 +7,7 @@ from functools import wraps
 from .auth import get_user_from_token, requires_auth, requires_agent
 from config import supabase, logger
 import traceback
+import base64
 
 knowledge_bp = Blueprint('knowledge', __name__)
 
@@ -51,10 +52,28 @@ def upload_file():
         file_size = len(file_content)
         file_type = filename.rsplit('.', 1)[1].lower()
         
+        # For text and markdown files, decode as UTF-8
+        if file_type in ['txt', 'md']:
+            try:
+                file_content = file_content.decode('utf-8')
+            except UnicodeDecodeError:
+                # If UTF-8 fails, try other common encodings
+                for encoding in ['latin-1', 'cp1252', 'iso-8859-1']:
+                    try:
+                        file_content = file_content.decode(encoding)
+                        break
+                    except UnicodeDecodeError:
+                        continue
+                else:
+                    return jsonify({'error': 'File encoding not supported'}), 400
+        else:
+            # For binary files, encode as base64
+            file_content = base64.b64encode(file_content).decode('utf-8')
+        
         file_data = {
             'filename': filename,
             'file_type': file_type,
-            'content': file_content.decode('utf-8') if file_type in ['txt', 'md'] else str(file_content),
+            'content': file_content,
             'file_size': file_size,
             'uploaded_by': user['email'],
             'uploaded_at': datetime.now().isoformat()
@@ -63,6 +82,7 @@ def upload_file():
         # Log the Supabase client state
         logger.info("About to execute insert...")
         logger.info(f"Current auth state - has session: {bool(supabase.auth.get_session())}")
+        logger.info(f"File content preview: {file_content[:100] if isinstance(file_content, str) else '<binary>'}")
         
         result = (
             supabase
@@ -153,6 +173,61 @@ def get_file(file_id):
 
     except Exception as e:
         logger.error(f"Failed to get file: {str(e)}")
+        logger.error(traceback.format_exc())
+        return jsonify({'error': str(e)}), 500
+
+@knowledge_bp.route('/knowledge/files/<int:file_id>/content', methods=['GET'])
+@requires_auth
+def get_file_content(file_id):
+    try:
+        # Get the raw token without 'Bearer ' prefix
+        auth_header = request.headers.get('Authorization', '')
+        token = auth_header.replace('Bearer ', '') if auth_header else None
+        refresh_token = request.headers.get('X-Refresh-Token')
+        
+        if not token or not refresh_token:
+            return jsonify({'error': 'No authorization tokens provided'}), 401
+
+        # Set the session
+        supabase.auth.set_session(token, refresh_token)
+        
+        result = (
+            supabase
+            .table('knowledge_files')
+            .select('*')
+            .eq('id', file_id)
+            .execute()
+        )
+        
+        if not hasattr(result, 'data') or not result.data:
+            return jsonify({'error': 'File not found'}), 404
+
+        file_data = result.data[0]
+        content = file_data['content']
+        
+        # For markdown and text files, return the content directly
+        if file_data['file_type'] in ['txt', 'md']:
+            # Log content for debugging
+            logger.info(f"Content type: {type(content)}")
+            logger.info(f"Content preview: {content[:100] if content else 'None'}")
+            
+            # Ensure content is a string
+            if isinstance(content, bytes):
+                try:
+                    content = content.decode('utf-8')
+                except UnicodeDecodeError:
+                    content = content.decode('latin-1')
+            
+            return jsonify({'content': content}), 200
+        else:
+            # For binary files, return base64 encoded content
+            return jsonify({
+                'content': content,
+                'encoding': 'base64'
+            }), 200
+
+    except Exception as e:
+        logger.error(f"Failed to get file content: {str(e)}")
         logger.error(traceback.format_exc())
         return jsonify({'error': str(e)}), 500
 
