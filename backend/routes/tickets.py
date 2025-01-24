@@ -1,6 +1,6 @@
 from flask import Blueprint, request, jsonify
 from datetime import datetime
-from config import supabase, logger
+from config import supabase_client, logger
 from postgrest import APIError
 import traceback
 
@@ -9,7 +9,7 @@ tickets_bp = Blueprint('tickets', __name__)
 def get_user_from_token(token):
     try:
         # Get user info from Supabase token
-        user = supabase.auth.get_user(token)
+        user = supabase_client.auth.get_user(token)
         return user.user
     except Exception as e:
         logger.error(f"Error getting user from token: {str(e)}")
@@ -18,8 +18,8 @@ def get_user_from_token(token):
 def get_supabase_client(access_token, refresh_token):
     try:
         # Set the session
-        supabase.auth.set_session(access_token, refresh_token)
-        return supabase
+        supabase_client.auth.set_session(access_token, refresh_token)
+        return supabase_client
     except Exception as e:
         logger.error(f"Error setting session: {str(e)}")
         return None

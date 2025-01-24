@@ -117,10 +117,20 @@ const Register: React.FC<RegisterProps> = ({ setIsAuthenticated }) => {
               type="submit"
               icon="pi pi-user-plus"
               className="mt-2"
+              style={{ 
+                backgroundColor: 'var(--primary-800)',
+                border: '1px solid var(--primary-800)',
+                color: 'white'
+              }}
+              pt={{
+                root: { 
+                  className: 'hover:bg-primary-900 hover:border-primary-900'
+                }
+              }}
             />
 
             <div className="text-center">
-              <Link to="/login" className="no-underline text-blue-500 hover:text-blue-700">
+              <Link to="/login" className="no-underline" style={{ color: 'var(--primary-800)' }}>
                 Already have an account? Login
               </Link>
             </div>

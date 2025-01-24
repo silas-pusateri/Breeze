@@ -1,5 +1,5 @@
 from flask import Blueprint, request, jsonify
-from config import supabase, logger
+from config import supabase_client, logger
 import traceback
 from functools import wraps
 
@@ -23,7 +23,7 @@ def register():
         logger.info(f"Registering user with email: {email}, role: {role}")
         
         # Register user with Supabase
-        auth_response = supabase.auth.sign_up({
+        auth_response = supabase_client.auth.sign_up({
             "email": email,
             "password": password,
             "options": {
@@ -77,7 +77,7 @@ def login():
         logger.info(f"Attempting login for user: {email}")
         
         # Sign in with Supabase
-        auth_response = supabase.auth.sign_in_with_password({
+        auth_response = supabase_client.auth.sign_in_with_password({
             "email": email,
             "password": password
         })
@@ -124,7 +124,7 @@ def get_user_from_token(request):
     
     try:
         # Set up the Supabase session with both tokens
-        session = supabase.auth.set_session(token, refresh_token)
+        session = supabase_client.auth.set_session(token, refresh_token)
         
         # Get user information from Supabase using the session
         user = session.user

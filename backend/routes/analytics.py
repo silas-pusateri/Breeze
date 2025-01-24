@@ -1,6 +1,6 @@
 from flask import Blueprint, request, jsonify
 from datetime import datetime
-from config import supabase, logger
+from config import supabase_client, logger
 from .auth import requires_agent, requires_auth, get_user_from_token
 import traceback
 
@@ -9,8 +9,8 @@ analytics_bp = Blueprint('analytics', __name__)
 def get_supabase_client(token, refresh_token):
     try:
         # Set the session
-        session = supabase.auth.set_session(token, refresh_token)
-        return supabase, session.user
+        session = supabase_client.auth.set_session(token, refresh_token)
+        return supabase_client, session.user
     except Exception as e:
         logger.error(f"Error setting session: {str(e)}")
         return None, None

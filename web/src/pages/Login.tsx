@@ -87,9 +87,19 @@ const Login: React.FC<LoginProps> = ({ setIsAuthenticated }) => {
               label="Login"
               type="submit"
               className="mt-4"
+              style={{ 
+                backgroundColor: 'var(--primary-800)',
+                border: '1px solid var(--primary-800)',
+                color: 'white'
+              }}
+              pt={{
+                root: { 
+                  className: 'hover:bg-primary-900 hover:border-primary-900'
+                }
+              }}
             />
             <div className="text-center mt-3">
-              <Link to="/register" className="no-underline text-blue-500 hover:text-blue-700">
+              <Link to="/register" className="no-underline" style={{ color: 'var(--primary-800)' }}>
                 Don't have an account? Register
               </Link>
             </div>

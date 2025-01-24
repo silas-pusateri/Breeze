@@ -19,6 +19,7 @@ import CreateTicket from './pages/CreateTicket';
 import EditTicket from './pages/EditTicket';
 import KnowledgeBase from './pages/KnowledgeBase';
 import Header from './components/Header';
+import Search from './pages/Search';
 
 const App = () => {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
@@ -30,6 +31,12 @@ const App = () => {
         <Routes>
           <Route path="/login" element={<Login setIsAuthenticated={setIsAuthenticated} />} />
           <Route path="/register" element={<Register setIsAuthenticated={setIsAuthenticated} />} />
+          <Route
+            path="/"
+            element={
+              isAuthenticated ? <Navigate to="/dashboard" /> : <Navigate to="/login" />
+            }
+          />
           <Route
             path="/dashboard"
             element={isAuthenticated ? <Dashboard /> : <Navigate to="/login" />}
@@ -50,7 +57,10 @@ const App = () => {
             path="/knowledge-base"
             element={isAuthenticated ? <KnowledgeBase /> : <Navigate to="/login" />}
           />
-          <Route path="/" element={<Navigate to="/login" />} />
+          <Route
+            path="/search"
+            element={isAuthenticated ? <Search /> : <Navigate to="/login" />}
+          />
         </Routes>
       </Router>
     </PrimeReactProvider>

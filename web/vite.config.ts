@@ -7,6 +7,13 @@ export default defineConfig({
     port: 3000,
     open: true,
     host: true,
+    proxy: {
+      '/api': {
+        target: 'http://backend:5001',
+        changeOrigin: true,
+        secure: false,
+      }
+    }
   },
   build: {
     outDir: 'dist',
