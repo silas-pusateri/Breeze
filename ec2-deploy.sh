@@ -27,14 +27,14 @@ fi
 
 # Create production environment file
 echo "Setting up environment files..."
-cat > ../.env.prod << EOL
+cat > .env.prod << EOL
 EC2_PUBLIC_IP=$EC2_PUBLIC_IP
 EOL
 
-# Copy .env file to parent directory if it doesn't exist
-if [ ! -f "../.env" ]; then
-    if [ -f ".env" ]; then
-        cp .env ../.env
+# Ensure .env file exists
+if [ ! -f ".env" ]; then
+    if [ -f "web/.env" ]; then
+        cp web/.env .env
     else
         echo "Error: .env file not found!"
         echo "Please create .env with required environment variables:"
@@ -45,13 +45,10 @@ if [ ! -f "../.env" ]; then
 fi
 
 # Remove version from docker-compose.prod.yml if it exists
-if [ -f "../docker-compose.prod.yml" ]; then
-    sed -i '/^version:/d' ../docker-compose.prod.yml
-fi
+sed -i '/^version:/d' docker-compose.prod.yml
 
 # Stop any running containers
 echo "Stopping existing containers..."
-cd ..
 docker-compose -f docker-compose.prod.yml down || true
 
 # Build and start containers
