@@ -1,6 +1,6 @@
 from flask import Flask
 from flask_cors import CORS
-from config import Config
+from config import Config, supabase_client
 
 def create_app():
     app = Flask(__name__)
@@ -15,16 +15,8 @@ def create_app():
         }
     })
     
-    # Initialize Supabase client with proper connection handling
-    from supabase import create_client
-    
-    @app.before_request
-    def create_supabase():
-        if not hasattr(app, 'supabase'):
-            app.supabase = create_client(
-                app.config['SUPABASE_URL'],
-                app.config['SUPABASE_KEY']
-            )
+    # Make supabase client available to the app
+    app.supabase = supabase_client
     
     # Register blueprints
     from routes.auth import auth_bp
