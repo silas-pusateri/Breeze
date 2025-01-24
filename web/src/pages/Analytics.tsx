@@ -568,8 +568,6 @@ const Analytics: React.FC = () => {
           <Button 
             label="Create Widget" 
             icon="pi pi-plus" 
-              severity="success"
-              size="large"
             onClick={() => setShowCreateDialog(true)}
           />
           ) : (

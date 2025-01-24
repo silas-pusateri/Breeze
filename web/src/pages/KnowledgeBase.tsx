@@ -299,7 +299,6 @@ const KnowledgeBase: React.FC = () => {
             uploadHandler={handleFileUpload}
             auto
             chooseLabel="Upload File"
-            className="p-button-primary"
           />
         </div>
 
