@@ -3,27 +3,19 @@
 # Exit on any error
 set -e
 
-# Check if the public IP is provided
-if [ -z "$1" ]; then
-    echo "Usage: ./ec2-deploy.sh <public-ip>"
-    exit 1
-fi
-
-EC2_PUBLIC_IP=$1
-REPO_URL="https://github.com/silaspusateri/GauntletAI.git"
-DEPLOY_DIR="/home/ubuntu/breeze-deploy"
+# Get the instance's public IP automatically
+EC2_PUBLIC_IP=$(curl -s http://169.254.169.254/latest/meta-data/public-ipv4)
+DEPLOY_DIR="/home/ec2-user/breeze-deploy"
 
 echo "Starting deployment process..."
+echo "Detected public IP: $EC2_PUBLIC_IP"
 
 # Install Docker if not already installed
 if ! command -v docker &> /dev/null; then
     echo "Installing Docker..."
-    sudo apt-get update
-    sudo apt-get install -y apt-transport-https ca-certificates curl software-properties-common
-    curl -fsSL https://download.docker.com/linux/ubuntu/gpg | sudo apt-key add -
-    sudo add-apt-repository "deb [arch=amd64] https://download.docker.com/linux/ubuntu $(lsb_release -cs) stable"
-    sudo apt-get update
-    sudo apt-get install -y docker-ce docker-ce-cli containerd.io
+    sudo yum update -y
+    sudo yum install -y docker
+    sudo service docker start
     sudo usermod -aG docker $USER
 fi
 
@@ -34,30 +26,14 @@ if ! command -v docker-compose &> /dev/null; then
     sudo chmod +x /usr/local/bin/docker-compose
 fi
 
-# Create deployment directory
-echo "Setting up deployment directory..."
-mkdir -p $DEPLOY_DIR
-cd $DEPLOY_DIR
-
-# Clone/pull the repository
-if [ -d "Project2" ]; then
-    echo "Updating existing repository..."
-    cd Project2
-    git pull
-else
-    echo "Cloning repository..."
-    git clone $REPO_URL Project2
-    cd Project2
-fi
-
 # Create production environment file
 echo "Setting up environment files..."
 echo "EC2_PUBLIC_IP=$EC2_PUBLIC_IP" > .env.prod
 
-# Ensure .env file exists and has required variables
-if [ ! -f "Breeze/.env" ]; then
-    echo "Error: Breeze/.env file not found!"
-    echo "Please create Breeze/.env with required environment variables:"
+# Ensure .env file exists
+if [ ! -f ".env" ]; then
+    echo "Error: .env file not found!"
+    echo "Please create .env with required environment variables:"
     echo "SUPABASE_URL=your_supabase_url"
     echo "SUPABASE_KEY=your_supabase_key"
     exit 1
