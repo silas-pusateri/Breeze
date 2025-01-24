@@ -3,11 +3,23 @@
 # Exit on any error
 set -e
 
-# Get the instance's public IP automatically
+# Get the instance's public IP automatically and ensure it's set
 EC2_PUBLIC_IP=$(curl -s http://169.254.169.254/latest/meta-data/public-ipv4)
+if [ -z "$EC2_PUBLIC_IP" ]; then
+    echo "Error: Could not detect EC2 public IP"
+    exit 1
+fi
 
 echo "Starting deployment process..."
 echo "Detected public IP: $EC2_PUBLIC_IP"
+
+# Ensure script is run with correct permissions
+if ! groups | grep -q docker && [ "$(id -u)" != "0" ]; then
+    echo "Adding current user to docker group..."
+    sudo usermod -aG docker $USER
+    echo "Please log out and log back in for group changes to take effect, then run this script again."
+    exit 1
+fi
 
 # Install Docker if not already installed
 if ! command -v docker &> /dev/null; then
@@ -16,7 +28,6 @@ if ! command -v docker &> /dev/null; then
     sudo yum install -y docker
     sudo systemctl start docker
     sudo systemctl enable docker
-    sudo usermod -aG docker $USER
     echo "Docker installed successfully"
 fi
 
@@ -26,7 +37,7 @@ if ! command -v docker-compose &> /dev/null; then
     # Install docker-compose binary
     sudo curl -L "https://github.com/docker/compose/releases/latest/download/docker-compose-$(uname -s)-$(uname -m)" -o /usr/local/bin/docker-compose
     sudo chmod +x /usr/local/bin/docker-compose
-    sudo ln -s /usr/local/bin/docker-compose /usr/bin/docker-compose
+    sudo ln -sf /usr/local/bin/docker-compose /usr/bin/docker-compose
     echo "Docker Compose installed successfully"
     # Verify installation
     docker-compose --version
@@ -40,19 +51,21 @@ EOL
 
 # Ensure .env file exists
 if [ ! -f ".env" ]; then
-    if [ -f "web/.env" ]; then
-        cp web/.env .env
-    else
-        echo "Error: .env file not found!"
-        echo "Please create .env with required environment variables:"
-        echo "SUPABASE_URL=your_supabase_url"
-        echo "SUPABASE_KEY=your_supabase_key"
-        exit 1
-    fi
+    echo "Error: .env file not found!"
+    echo "Please create .env with required environment variables:"
+    echo "SUPABASE_URL=your_supabase_url"
+    echo "SUPABASE_KEY=your_supabase_key"
+    exit 1
 fi
 
 # Remove version from docker-compose.prod.yml if it exists
 sed -i '/^version:/d' docker-compose.prod.yml
+
+# Ensure docker is running
+if ! sudo systemctl is-active --quiet docker; then
+    echo "Starting Docker daemon..."
+    sudo systemctl start docker
+fi
 
 # Stop any running containers
 echo "Stopping existing containers..."
