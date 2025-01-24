@@ -14,15 +14,22 @@ if ! command -v docker &> /dev/null; then
     echo "Installing Docker..."
     sudo yum update -y
     sudo yum install -y docker
-    sudo service docker start
+    sudo systemctl start docker
+    sudo systemctl enable docker
     sudo usermod -aG docker $USER
+    echo "Docker installed successfully"
 fi
 
 # Install Docker Compose if not already installed
 if ! command -v docker-compose &> /dev/null; then
     echo "Installing Docker Compose..."
-    sudo curl -L "https://github.com/docker/compose/releases/download/v2.24.1/docker-compose-$(uname -s)-$(uname -m)" -o /usr/local/bin/docker-compose
+    # Install docker-compose binary
+    sudo curl -L "https://github.com/docker/compose/releases/latest/download/docker-compose-$(uname -s)-$(uname -m)" -o /usr/local/bin/docker-compose
     sudo chmod +x /usr/local/bin/docker-compose
+    sudo ln -s /usr/local/bin/docker-compose /usr/bin/docker-compose
+    echo "Docker Compose installed successfully"
+    # Verify installation
+    docker-compose --version
 fi
 
 # Create production environment file
