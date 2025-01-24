@@ -9,10 +9,6 @@ EC2_PUBLIC_IP=$(curl -s http://169.254.169.254/latest/meta-data/public-ipv4)
 echo "Starting deployment process..."
 echo "Detected public IP: $EC2_PUBLIC_IP"
 
-# Ensure we're in the correct directory
-SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )"
-cd "$SCRIPT_DIR"
-
 # Install Docker if not already installed
 if ! command -v docker &> /dev/null; then
     echo "Installing Docker..."
@@ -31,14 +27,14 @@ fi
 
 # Create production environment file
 echo "Setting up environment files..."
-cat > .env.prod << EOL
+cat > ../.env.prod << EOL
 EC2_PUBLIC_IP=$EC2_PUBLIC_IP
 EOL
 
-# Ensure .env file exists and has the required variables
-if [ ! -f ".env" ]; then
-    if [ -f "web/.env" ]; then
-        cp web/.env .env
+# Copy .env file to parent directory if it doesn't exist
+if [ ! -f "../.env" ]; then
+    if [ -f ".env" ]; then
+        cp .env ../.env
     else
         echo "Error: .env file not found!"
         echo "Please create .env with required environment variables:"
@@ -49,10 +45,13 @@ if [ ! -f ".env" ]; then
 fi
 
 # Remove version from docker-compose.prod.yml if it exists
-sed -i '/^version:/d' docker-compose.prod.yml
+if [ -f "../docker-compose.prod.yml" ]; then
+    sed -i '/^version:/d' ../docker-compose.prod.yml
+fi
 
 # Stop any running containers
 echo "Stopping existing containers..."
+cd ..
 docker-compose -f docker-compose.prod.yml down || true
 
 # Build and start containers
