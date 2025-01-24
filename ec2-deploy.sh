@@ -5,10 +5,13 @@ set -e
 
 # Get the instance's public IP automatically
 EC2_PUBLIC_IP=$(curl -s http://169.254.169.254/latest/meta-data/public-ipv4)
-DEPLOY_DIR="/home/ec2-user/breeze-deploy"
 
 echo "Starting deployment process..."
 echo "Detected public IP: $EC2_PUBLIC_IP"
+
+# Ensure we're in the correct directory
+SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )"
+cd "$SCRIPT_DIR"
 
 # Install Docker if not already installed
 if ! command -v docker &> /dev/null; then
@@ -28,16 +31,25 @@ fi
 
 # Create production environment file
 echo "Setting up environment files..."
-echo "EC2_PUBLIC_IP=$EC2_PUBLIC_IP" > .env.prod
+cat > .env.prod << EOL
+EC2_PUBLIC_IP=$EC2_PUBLIC_IP
+EOL
 
-# Ensure .env file exists
+# Ensure .env file exists and has the required variables
 if [ ! -f ".env" ]; then
-    echo "Error: .env file not found!"
-    echo "Please create .env with required environment variables:"
-    echo "SUPABASE_URL=your_supabase_url"
-    echo "SUPABASE_KEY=your_supabase_key"
-    exit 1
+    if [ -f "web/.env" ]; then
+        cp web/.env .env
+    else
+        echo "Error: .env file not found!"
+        echo "Please create .env with required environment variables:"
+        echo "SUPABASE_URL=your_supabase_url"
+        echo "SUPABASE_KEY=your_supabase_key"
+        exit 1
+    fi
 fi
+
+# Remove version from docker-compose.prod.yml if it exists
+sed -i '/^version:/d' docker-compose.prod.yml
 
 # Stop any running containers
 echo "Stopping existing containers..."
@@ -45,6 +57,7 @@ docker-compose -f docker-compose.prod.yml down || true
 
 # Build and start containers
 echo "Building and starting containers..."
+export EC2_PUBLIC_IP
 docker-compose -f docker-compose.prod.yml up --build -d
 
 # Clean up old images
