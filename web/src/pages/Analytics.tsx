@@ -1,4 +1,4 @@
-import React, { type ReactNode, useEffect, useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Card } from 'primereact/card';
 import { Button } from 'primereact/button';
 import { Dialog } from 'primereact/dialog';
@@ -14,8 +14,7 @@ import {
   PointerSensor,
   useSensor,
   useSensors,
-  DragEndEvent,
-  type DndContextProps
+  type DragEndEvent
 } from '@dnd-kit/core';
 import {
   arrayMove,

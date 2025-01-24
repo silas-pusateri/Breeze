@@ -1,15 +1,15 @@
 from flask import Flask
 from flask_cors import CORS
-from config.lambda_config import Config
+from config import Config
 
 def create_app():
     app = Flask(__name__)
     app.config.from_object(Config)
     
-    # Configure CORS for Lambda
+    # Configure CORS
     CORS(app, resources={
         r"/*": {
-            "origins": ["*"],  # Update this with your actual domain in production
+            "origins": app.config['ALLOWED_ORIGINS'],
             "methods": ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
             "allow_headers": ["Content-Type", "Authorization"]
         }

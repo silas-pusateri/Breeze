@@ -9,18 +9,27 @@ logger = logging.getLogger(__name__)
 
 load_dotenv()
 
-SUPABASE_URL = os.getenv('SUPABASE_URL')
-SUPABASE_KEY = os.getenv('SUPABASE_KEY')
+class Config:
+    # Load configuration from environment variables
+    SUPABASE_URL = os.getenv('SUPABASE_URL')
+    SUPABASE_KEY = os.getenv('SUPABASE_KEY')
+    
+    # CORS settings
+    ALLOWED_ORIGINS = os.getenv('ALLOWED_ORIGINS', 'http://localhost:3000').split(',')
+    
+    # Flask settings
+    FLASK_ENV = os.getenv('FLASK_ENV', 'development')
+    DEBUG = os.getenv('FLASK_DEBUG', '0') == '1'
 
-if not SUPABASE_URL or not SUPABASE_KEY:
+if not Config.SUPABASE_URL or not Config.SUPABASE_KEY:
     raise ValueError("Missing Supabase credentials. Please check your .env file.")
 
-logger.info(f"Initializing Supabase client with URL: {SUPABASE_URL}")
+logger.info(f"Initializing Supabase client with URL: {Config.SUPABASE_URL}")
 try:
     # Initialize Supabase client
     supabase_client: Client = create_client(
-        supabase_url=SUPABASE_URL,
-        supabase_key=SUPABASE_KEY
+        supabase_url=Config.SUPABASE_URL,
+        supabase_key=Config.SUPABASE_KEY
     )
     logger.info("Supabase client initialized successfully")
 except Exception as e:
