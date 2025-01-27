@@ -20,6 +20,7 @@ import EditTicket from './pages/EditTicket';
 import KnowledgeBase from './pages/KnowledgeBase';
 import Header from './components/Header';
 import Search from './pages/Search';
+import RagSearch from './pages/RagSearch';
 
 const App = () => {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
@@ -60,6 +61,10 @@ const App = () => {
           <Route
             path="/search"
             element={isAuthenticated ? <Search /> : <Navigate to="/login" />}
+          />
+          <Route
+            path="/rag-search"
+            element={isAuthenticated ? <RagSearch /> : <Navigate to="/login" />}
           />
         </Routes>
       </Router>

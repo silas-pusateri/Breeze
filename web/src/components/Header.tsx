@@ -53,8 +53,21 @@ const Header: React.FC<HeaderProps> = ({ isAuthenticated, setIsAuthenticated }) 
         {
           label: 'Knowledge Base',
           icon: 'pi pi-book',
-          command: () => navigate('/knowledge-base'),
-          className: 'text-white'
+          className: 'text-white',
+          items: [
+            {
+              label: 'Browse',
+              icon: 'pi pi-folder-open',
+              command: () => navigate('/knowledge-base'),
+              className: 'text-white'
+            },
+            {
+              label: 'RAG Search',
+              icon: 'pi pi-search',
+              command: () => navigate('/rag-search'),
+              className: 'text-white'
+            }
+          ]
         }
       ]
     : [];
