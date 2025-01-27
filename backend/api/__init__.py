@@ -25,11 +25,13 @@ def create_app():
     from routes.knowledge import knowledge_bp
     from routes.analytics import analytics_bp
     from routes.search import search_bp
+    from routes.rag import rag_bp
     
     app.register_blueprint(auth_bp)
     app.register_blueprint(tickets_bp)
     app.register_blueprint(knowledge_bp)
     app.register_blueprint(analytics_bp)
     app.register_blueprint(search_bp)
+    app.register_blueprint(rag_bp, url_prefix='/api/rag')
     
     return app 
