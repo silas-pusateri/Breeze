@@ -4,6 +4,7 @@ import { Menubar } from 'primereact/menubar';
 import { Button } from 'primereact/button';
 import { MenuItem } from 'primereact/menuitem';
 import { InputText } from 'primereact/inputtext';
+import { MenubarPassThroughOptions } from 'primereact/menubar';
 
 interface HeaderProps {
   isAuthenticated: boolean;
@@ -34,22 +35,26 @@ const Header: React.FC<HeaderProps> = ({ isAuthenticated, setIsAuthenticated }) 
         {
           label: 'Create Ticket',
           icon: 'pi pi-plus',
-          command: () => navigate('/create-ticket')
+          command: () => navigate('/create-ticket'),
+          className: 'text-white'
         },
         {
           label: 'Dashboard',
           icon: 'pi pi-home',
-          command: () => navigate('/dashboard')
+          command: () => navigate('/dashboard'),
+          className: 'text-white'
         },
         {
           label: 'Analytics',
           icon: 'pi pi-chart-bar',
-          command: () => navigate('/analytics')
+          command: () => navigate('/analytics'),
+          className: 'text-white'
         },
         {
           label: 'Knowledge Base',
           icon: 'pi pi-book',
-          command: () => navigate('/knowledge-base')
+          command: () => navigate('/knowledge-base'),
+          className: 'text-white'
         }
       ]
     : [];
@@ -110,47 +115,30 @@ const Header: React.FC<HeaderProps> = ({ isAuthenticated, setIsAuthenticated }) 
     </div>
   );
 
+  const menubarStyle = {
+    background: 'var(--primary-800)',
+    height: '4rem',
+    display: 'flex',
+    alignItems: 'center'
+  };
+
+  const menubarPT: MenubarPassThroughOptions = {
+    root: {
+      className: 'overflow-visible border-none px-4 flex align-items-center'
+    },
+    menuitem: {
+      className: 'mx-1'
+    }
+  };
+
   return (
     <div className="card">
       <Menubar
         model={mainMenuItems}
         start={start}
         end={end}
-        className="border-none px-4 flex align-items-center"
-        style={{ 
-          background: 'var(--primary-800)',
-          height: '4rem',
-          display: 'flex',
-          alignItems: 'center'
-        }}
-        pt={{
-          root: {
-            className: 'overflow-visible',
-            style: {
-              '& .p-menuitem': {
-                margin: '0 2px'
-              },
-              '& .p-menuitem-link': {
-                color: '#ffffff',
-                borderRadius: '8px',
-                transition: 'all 0.2s'
-              },
-              '& .p-menuitem-text': {
-                color: '#ffffff'
-              },
-              '& .p-menuitem-icon': {
-                color: '#ffffff'
-              },
-              '& .p-menuitem-link:hover': {
-                backgroundColor: 'var(--primary-100)',
-                borderRadius: '8px'
-              },
-              '& .p-menuitem-link:hover .p-menuitem-text, & .p-menuitem-link:hover .p-menuitem-icon': {
-                color: 'var(--primary-800)'
-              }
-            }
-          }
-        }}
+        style={menubarStyle}
+        pt={menubarPT}
       />
     </div>
   );
