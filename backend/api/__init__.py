@@ -11,7 +11,8 @@ def create_app():
         r"/*": {
             "origins": ["*"],  # Update this with your actual domain in production
             "methods": ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
-            "allow_headers": ["Content-Type", "Authorization"]
+            "allow_headers": ["Content-Type", "Authorization", "X-Refresh-Token"],
+            "expose_headers": ["Content-Type", "Authorization", "X-Refresh-Token"]
         }
     })
     

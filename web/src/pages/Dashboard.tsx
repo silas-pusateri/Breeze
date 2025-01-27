@@ -4,6 +4,7 @@ import { Button } from 'primereact/button';
 import { DataTable } from 'primereact/datatable';
 import { Column } from 'primereact/column';
 import { Message } from 'primereact/message';
+import { fetchWithAuth } from '../utils/api';
 import './Dashboard.css';
 
 interface Ticket {
@@ -20,8 +21,8 @@ const Dashboard: React.FC = () => {
   const navigate = useNavigate();
   const [tickets, setTickets] = useState<Ticket[]>([]);
   const [error, setError] = useState<string | null>(null);
+  const [loading, setLoading] = useState(true);
   const userRole = localStorage.getItem('userRole');
-  const token = localStorage.getItem('token');
 
   useEffect(() => {
     fetchTickets();
@@ -29,35 +30,19 @@ const Dashboard: React.FC = () => {
 
   const fetchTickets = async () => {
     try {
-      if (!token) {
-        setError('No authentication token found');
-        return;
-      }
-
-      const refreshToken = localStorage.getItem('refresh_token');
-      if (!refreshToken) {
-        setError('No refresh token found');
-        return;
-      }
-
-      const response = await fetch('http://localhost:5001/tickets', {
-        headers: {
-          'Authorization': token,
-          'X-Refresh-Token': refreshToken,
-          'Content-Type': 'application/json',
-        },
-      });
-
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || 'Failed to fetch tickets');
-      }
-
-      const data = await response.json();
+      setLoading(true);
+      const data = await fetchWithAuth('tickets');
       setTickets(data);
+      setError(null);
     } catch (error) {
       console.error('Failed to fetch tickets:', error);
       setError(error instanceof Error ? error.message : 'Failed to fetch tickets');
+      // If authentication error, redirect to login
+      if (error instanceof Error && error.message.includes('Authentication required')) {
+        navigate('/login');
+      }
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -117,6 +102,7 @@ const Dashboard: React.FC = () => {
           rowsPerPageOptions={[5, 10, 25, 50]}
           tableStyle={{ minWidth: '50rem' }}
           className="p-datatable-striped"
+          loading={loading}
         >
           <Column field="id" header="ID" sortable style={{ width: '5%' }} />
           <Column field="title" header="Title" sortable style={{ width: '25%' }} />

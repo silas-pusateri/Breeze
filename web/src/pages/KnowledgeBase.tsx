@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { DataTable } from 'primereact/datatable';
 import { Column } from 'primereact/column';
 import { Button } from 'primereact/button';
@@ -8,6 +9,7 @@ import { ConfirmDialog, confirmDialog } from 'primereact/confirmdialog';
 import { Toast } from 'primereact/toast';
 import { Dialog } from 'primereact/dialog';
 import ReactMarkdown from 'react-markdown';
+import { fetchWithAuth } from '../utils/api';
 
 interface KnowledgeFile {
   id: number;
@@ -19,13 +21,13 @@ interface KnowledgeFile {
 }
 
 const KnowledgeBase: React.FC = () => {
+  const navigate = useNavigate();
   const [files, setFiles] = useState<KnowledgeFile[]>([]);
   const [error, setError] = useState<string | null>(null);
+  const [loading, setLoading] = useState(true);
   const [selectedFile, setSelectedFile] = useState<KnowledgeFile | null>(null);
   const [markdownContent, setMarkdownContent] = useState<string>('');
   const [viewDialogVisible, setViewDialogVisible] = useState(false);
-  const token = localStorage.getItem('token');
-  const refreshToken = localStorage.getItem('refresh_token');
   const toast = useRef<Toast>(null);
   const fileUploadRef = useRef<FileUpload>(null);
 
@@ -35,29 +37,24 @@ const KnowledgeBase: React.FC = () => {
 
   const fetchFiles = async () => {
     try {
-      if (!token || !refreshToken) {
-        setError('No authentication tokens found');
-        return;
-      }
-
-      const response = await fetch('http://localhost:5001/knowledge/files', {
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'X-Refresh-Token': refreshToken,
-          'Content-Type': 'application/json',
-        },
-      });
-
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || 'Failed to fetch files');
-      }
-
-      const data = await response.json();
+      setLoading(true);
+      const data = await fetchWithAuth('knowledge/files');
       setFiles(data);
+      setError(null);
     } catch (error) {
       console.error('Failed to fetch files:', error);
       setError(error instanceof Error ? error.message : 'Failed to fetch files');
+      if (error instanceof Error && error.message.includes('Authentication required')) {
+        navigate('/login');
+      }
+      toast.current?.show({
+        severity: 'error',
+        summary: 'Error',
+        detail: error instanceof Error ? error.message : 'Failed to fetch files',
+        life: 3000
+      });
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -69,23 +66,12 @@ const KnowledgeBase: React.FC = () => {
     formData.append('file', file);
 
     try {
-      if (!token || !refreshToken) {
-        throw new Error('No authentication tokens found');
-      }
-
-      const response = await fetch('http://localhost:5001/knowledge/upload', {
+      await fetchWithAuth('knowledge/upload', {
         method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'X-Refresh-Token': refreshToken,
-        },
         body: formData,
+        // Don't set Content-Type header for FormData
+        headers: {}
       });
-
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || 'Failed to upload file');
-      }
 
       await fetchFiles();
       if (fileUploadRef.current) {
@@ -99,7 +85,6 @@ const KnowledgeBase: React.FC = () => {
       });
     } catch (error) {
       console.error('Failed to upload file:', error);
-      setError(error instanceof Error ? error.message : 'Failed to upload file');
       toast.current?.show({
         severity: 'error',
         summary: 'Error',
@@ -123,23 +108,9 @@ const KnowledgeBase: React.FC = () => {
 
   const handleDelete = async (fileId: number) => {
     try {
-      if (!token || !refreshToken) {
-        throw new Error('No authentication tokens found');
-      }
-
-      const response = await fetch(`http://localhost:5001/knowledge/files/${fileId}`, {
-        method: 'DELETE',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'X-Refresh-Token': refreshToken,
-          'Content-Type': 'application/json',
-        },
+      await fetchWithAuth(`knowledge/files/${fileId}`, {
+        method: 'DELETE'
       });
-
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || 'Failed to delete file');
-      }
 
       await fetchFiles();
       toast.current?.show({
@@ -150,7 +121,6 @@ const KnowledgeBase: React.FC = () => {
       });
     } catch (error) {
       console.error('Failed to delete file:', error);
-      setError(error instanceof Error ? error.message : 'Failed to delete file');
       toast.current?.show({
         severity: 'error',
         summary: 'Error',
@@ -180,24 +150,7 @@ const KnowledgeBase: React.FC = () => {
     }
 
     try {
-      if (!token || !refreshToken) {
-        throw new Error('No authentication tokens found');
-      }
-
-      const response = await fetch(`http://localhost:5001/knowledge/files/${file.id}/content`, {
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'X-Refresh-Token': refreshToken,
-        },
-      });
-
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || 'Failed to fetch file content');
-      }
-
-      const data = await response.json();
-      console.log('Received content:', data.content.substring(0, 100)); // Debug log
+      const data = await fetchWithAuth(`knowledge/files/${file.id}/content`);
       
       // Handle both text and base64-encoded content
       let content = data.content;
@@ -272,28 +225,13 @@ const KnowledgeBase: React.FC = () => {
 
   return (
     <div className="p-4">
-      <Toast ref={toast} />
-      <ConfirmDialog />
-      
-      <Dialog 
-        header={selectedFile?.filename}
-        visible={viewDialogVisible} 
-        style={{ width: '70vw' }} 
-        onHide={() => setViewDialogVisible(false)}
-        maximizable
-      >
-        <div className="markdown-content p-4" style={{ maxHeight: '70vh', overflow: 'auto' }}>
-          <ReactMarkdown>{markdownContent}</ReactMarkdown>
-        </div>
-      </Dialog>
-
       <div className="flex flex-column gap-4">
         <div className="flex align-items-center justify-content-between">
           <h1 className="text-4xl font-bold m-0">Knowledge Base</h1>
           <FileUpload
             ref={fileUploadRef}
             mode="basic"
-            accept="*/*"
+            accept=".md,.txt,.pdf,.doc,.docx"
             maxFileSize={10000000}
             customUpload
             uploadHandler={handleFileUpload}
@@ -313,14 +251,30 @@ const KnowledgeBase: React.FC = () => {
           rowsPerPageOptions={[5, 10, 25, 50]}
           tableStyle={{ minWidth: '50rem' }}
           className="p-datatable-striped"
+          loading={loading}
         >
-          <Column field="filename" header="Filename" sortable />
-          <Column field="file_type" header="Type" sortable />
-          <Column field="file_size" header="Size" body={fileSizeBodyTemplate} sortable />
-          <Column field="uploaded_by" header="Uploaded By" sortable />
-          <Column field="uploaded_at" header="Upload Date" body={dateBodyTemplate} sortable />
+          <Column field="filename" header="Filename" sortable style={{ width: '30%' }} />
+          <Column field="file_type" header="Type" sortable style={{ width: '10%' }} />
+          <Column field="uploaded_by" header="Uploaded By" sortable style={{ width: '20%' }} />
+          <Column field="uploaded_at" header="Upload Date" body={dateBodyTemplate} sortable style={{ width: '15%' }} />
+          <Column field="file_size" header="Size" body={fileSizeBodyTemplate} sortable style={{ width: '15%' }} />
           <Column body={actionBodyTemplate} header="Actions" style={{ width: '10%' }} />
         </DataTable>
+
+        <Dialog
+          header={selectedFile?.filename}
+          visible={viewDialogVisible}
+          style={{ width: '70vw' }}
+          onHide={() => setViewDialogVisible(false)}
+          maximizable
+        >
+          <div className="markdown-content">
+            <ReactMarkdown>{markdownContent}</ReactMarkdown>
+          </div>
+        </Dialog>
+
+        <Toast ref={toast} />
+        <ConfirmDialog />
       </div>
     </div>
   );

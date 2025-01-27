@@ -4,6 +4,7 @@ import { Card } from 'primereact/card';
 import { InputText } from 'primereact/inputtext';
 import { Button } from 'primereact/button';
 import { Message } from 'primereact/message';
+import { getApiUrl } from '../utils/api';
 
 interface LoginProps {
   setIsAuthenticated: (value: boolean) => void;
@@ -22,7 +23,7 @@ const Login: React.FC<LoginProps> = ({ setIsAuthenticated }) => {
     setError(null);
 
     try {
-      const response = await fetch('http://localhost:5001/login', {
+      const response = await fetch(getApiUrl('login'), {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

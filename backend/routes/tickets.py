@@ -3,17 +3,9 @@ from datetime import datetime
 from config import supabase_client, logger
 from postgrest import APIError
 import traceback
+from .auth import requires_auth, get_user_from_token
 
 tickets_bp = Blueprint('tickets', __name__)
-
-def get_user_from_token(token):
-    try:
-        # Get user info from Supabase token
-        user = supabase_client.auth.get_user(token)
-        return user.user
-    except Exception as e:
-        logger.error(f"Error getting user from token: {str(e)}")
-        return None
 
 def get_supabase_client(access_token, refresh_token):
     try:
@@ -25,6 +17,7 @@ def get_supabase_client(access_token, refresh_token):
         return None
 
 @tickets_bp.route('/tickets', methods=['POST'])
+@requires_auth
 def create_ticket():
     try:
         # Get the raw token without 'Bearer ' prefix
@@ -36,12 +29,12 @@ def create_ticket():
             return jsonify({'error': 'No authorization tokens provided'}), 401
             
         # Get user from token
-        user = get_user_from_token(token)
+        user = get_user_from_token(request)
         if not user:
             return jsonify({'error': 'Invalid token'}), 401
             
-        email = user.email
-        role = user.user_metadata.get('role', 'customer')
+        email = user['email']
+        role = user['role']
         
         data = request.get_json()
         logger.info(f"Creating ticket for {email} with role {role}")
@@ -98,11 +91,11 @@ def create_ticket():
         logger.error(traceback.format_exc())
         return jsonify({
             'error': 'Failed to create ticket',
-            'details': str(e),
-            'traceback': traceback.format_exc()
+            'details': str(e)
         }), 500
 
 @tickets_bp.route('/tickets', methods=['GET'])
+@requires_auth
 def get_tickets():
     try:
         # Get the raw token without 'Bearer ' prefix
@@ -114,12 +107,12 @@ def get_tickets():
             return jsonify({'error': 'No authorization tokens provided'}), 401
             
         # Get user from token
-        user = get_user_from_token(token)
+        user = get_user_from_token(request)
         if not user:
             return jsonify({'error': 'Invalid token'}), 401
             
-        email = user.email
-        role = user.user_metadata.get('role', 'customer')
+        email = user['email']
+        role = user['role']
             
         logger.info(f"Fetching tickets for {email} with role {role}")
         
@@ -155,9 +148,10 @@ def get_tickets():
     except Exception as e:
         logger.error(f"Error fetching tickets: {str(e)}")
         logger.error(traceback.format_exc())
-        return jsonify({'error': str(e), 'traceback': traceback.format_exc()}), 500
+        return jsonify({'error': str(e)}), 500
 
 @tickets_bp.route('/tickets/<int:ticket_id>', methods=['GET'])
+@requires_auth
 def get_ticket(ticket_id):
     try:
         # Get the raw token without 'Bearer ' prefix
@@ -169,12 +163,12 @@ def get_ticket(ticket_id):
             return jsonify({'error': 'No authorization tokens provided'}), 401
             
         # Get user from token
-        user = get_user_from_token(token)
+        user = get_user_from_token(request)
         if not user:
             return jsonify({'error': 'Invalid token'}), 401
             
-        email = user.email
-        role = user.user_metadata.get('role', 'customer')
+        email = user['email']
+        role = user['role']
             
         logger.info(f"Fetching ticket {ticket_id} for {email}")
         
@@ -206,9 +200,10 @@ def get_ticket(ticket_id):
     except Exception as e:
         logger.error(f"Error fetching ticket: {str(e)}")
         logger.error(traceback.format_exc())
-        return jsonify({'error': str(e), 'traceback': traceback.format_exc()}), 500
+        return jsonify({'error': str(e)}), 500
 
 @tickets_bp.route('/tickets/<int:ticket_id>', methods=['PUT'])
+@requires_auth
 def update_ticket(ticket_id):
     try:
         # Get the raw token without 'Bearer ' prefix
@@ -220,12 +215,12 @@ def update_ticket(ticket_id):
             return jsonify({'error': 'No authorization tokens provided'}), 401
             
         # Get user from token
-        user = get_user_from_token(token)
+        user = get_user_from_token(request)
         if not user:
             return jsonify({'error': 'Invalid token'}), 401
             
-        email = user.email
-        role = user.user_metadata.get('role', 'customer')
+        email = user['email']
+        role = user['role']
             
         logger.info(f"Updating ticket {ticket_id} for {email}")
         
@@ -249,38 +244,26 @@ def update_ticket(ticket_id):
         if role == 'customer':
             existing_ticket = existing_ticket.eq('user_email', email)
             
-        existing_result = existing_ticket.execute()
+        result = existing_ticket.execute()
         
-        if not hasattr(existing_result, 'data') or not existing_result.data:
+        if not hasattr(result, 'data') or not result.data:
             return jsonify({'error': 'Ticket not found or access denied'}), 404
             
-        # Update ticket
-        update_data = {}
-        if 'title' in data:
-            update_data['title'] = data['title']
-        if 'description' in data:
-            update_data['description'] = data['description']
-        if 'status' in data and role == 'agent':  # Only agents can update status
-            update_data['status'] = data['status']
-        if 'assigned_to' in data and role == 'agent':  # Only agents can assign tickets
-            update_data['assigned_to'] = data['assigned_to']
-            
-        logger.info(f"Updating with data: {update_data}")
-        result = (
+        # Update the ticket
+        update_result = (
             client
             .table('tickets')
-            .update(update_data)
+            .update(data)
             .eq('id', ticket_id)
             .execute()
         )
-        logger.info(f"Update result: {result}")
         
-        if hasattr(result, 'data') and result.data:
-            return jsonify(result.data[0])
+        if hasattr(update_result, 'data') and update_result.data:
+            return jsonify(update_result.data[0])
         else:
             return jsonify({'error': 'Failed to update ticket'}), 500
             
     except Exception as e:
         logger.error(f"Error updating ticket: {str(e)}")
         logger.error(traceback.format_exc())
-        return jsonify({'error': str(e), 'traceback': traceback.format_exc()}), 500 
+        return jsonify({'error': str(e)}), 500 
