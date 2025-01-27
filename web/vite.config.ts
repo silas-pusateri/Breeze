@@ -6,8 +6,9 @@ export default defineConfig({
   plugins: [react()],
   resolve: {
     alias: {
-      '@': path.resolve(__dirname, './src'),
-    }
+      '@': path.resolve(__dirname, './src')
+    },
+    dedupe: ['react', 'react-dom']
   },
   css: {
     preprocessorOptions: {
@@ -17,7 +18,13 @@ export default defineConfig({
     }
   },
   optimizeDeps: {
-    include: ['primeicons', 'primeflex']
+    include: [
+      'react',
+      'react-dom',
+      'primereact',
+      'quill'
+    ],
+    exclude: ['primeicons']
   },
   server: {
     port: 3000,
@@ -39,13 +46,13 @@ export default defineConfig({
       output: {
         manualChunks: (id) => {
           if (id.includes('node_modules')) {
-            if (id.includes('react')) return 'vendor';
-            if (id.includes('prime')) return 'ui';
+            if (id.includes('react')) return 'react-vendor';
+            if (id.includes('primereact') || id.includes('quill')) return 'prime-vendor';
             return 'vendor';
           }
         }
       }
     }
   },
-  base: '/',
+  base: '/'
 }); 

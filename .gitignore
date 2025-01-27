@@ -185,3 +185,12 @@ web/npm-debug.log*
 web/yarn-debug.log*
 web/yarn-error.log*
 schema.sql
+
+# Security
+*.pem
+.env.production
+.env.prod
+.env.local
+.env.development.local
+.env.test.local
+.env.*.local

@@ -1,0 +1,24 @@
+FROM node:18-alpine
+
+# Set Node options for increased memory
+ENV NODE_OPTIONS="--max-old-space-size=4096"
+
+WORKDIR /app
+
+# Install wget for health checks
+RUN apk add --no-cache wget
+
+# Copy package files
+COPY package*.json ./
+
+# Install dependencies
+RUN npm install
+
+# Copy source files
+COPY . .
+
+# Expose dev server port
+EXPOSE 3000
+
+# Start dev server
+CMD ["npm", "run", "dev"] 
