@@ -21,11 +21,14 @@ export const fetchWithAuth = async (endpoint: string, options: RequestOptions = 
       throw new Error('Authentication required but no tokens found');
     }
     
+    // Don't set Content-Type for FormData
+    const isFormData = options.body instanceof FormData;
+    
     fetchOptions.headers = {
       ...fetchOptions.headers,
       'Authorization': `Bearer ${token}`,
       'X-Refresh-Token': refreshToken,
-      'Content-Type': 'application/json',
+      ...(!isFormData && { 'Content-Type': 'application/json' }),
     };
   }
   
