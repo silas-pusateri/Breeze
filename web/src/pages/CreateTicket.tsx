@@ -35,7 +35,7 @@ const CreateTicket: React.FC = () => {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': token,
+          'Authorization': `Bearer ${token}`,
           'X-Refresh-Token': refreshToken,
         },
         body: JSON.stringify(formData),

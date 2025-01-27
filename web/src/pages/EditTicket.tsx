@@ -57,7 +57,7 @@ const EditTicket: React.FC = () => {
 
         const response = await fetch(`http://localhost:5001/tickets/${ticketId}`, {
           headers: {
-            Authorization: token,
+            Authorization: `Bearer ${token}`,
             'X-Refresh-Token': refreshToken,
           },
         });
@@ -103,7 +103,7 @@ const EditTicket: React.FC = () => {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
-          Authorization: token,
+          Authorization: `Bearer ${token}`,
           'X-Refresh-Token': refreshToken,
         },
         body: JSON.stringify(updateData),
