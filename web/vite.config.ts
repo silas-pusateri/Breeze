@@ -1,8 +1,24 @@
 import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
+import path from 'path';
 
 export default defineConfig({
   plugins: [react()],
+  resolve: {
+    alias: {
+      '@': path.resolve(__dirname, './src'),
+    }
+  },
+  css: {
+    preprocessorOptions: {
+      css: {
+        charset: false
+      }
+    }
+  },
+  optimizeDeps: {
+    include: ['primeicons', 'primeflex']
+  },
   server: {
     port: 3000,
     open: true,
@@ -19,10 +35,14 @@ export default defineConfig({
     outDir: 'dist',
     sourcemap: true,
     rollupOptions: {
+      external: ['#minpath'],
       output: {
-        manualChunks: {
-          vendor: ['react', 'react-dom', 'react-router-dom'],
-          ui: ['primereact', 'primeicons', 'primeflex']
+        manualChunks: (id) => {
+          if (id.includes('node_modules')) {
+            if (id.includes('react')) return 'vendor';
+            if (id.includes('prime')) return 'ui';
+            return 'vendor';
+          }
         }
       }
     }
