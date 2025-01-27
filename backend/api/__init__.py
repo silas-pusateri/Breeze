@@ -11,7 +11,8 @@ def create_app():
         r"/*": {
             "origins": app.config['ALLOWED_ORIGINS'],
             "methods": ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
-            "allow_headers": ["Content-Type", "Authorization"]
+            "allow_headers": ["Content-Type", "Authorization", "X-Refresh-Token"],
+            "expose_headers": ["Content-Type", "Authorization", "X-Refresh-Token"]
         }
     })
     
