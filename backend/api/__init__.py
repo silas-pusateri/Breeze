@@ -26,6 +26,7 @@ def create_app():
     from routes.analytics import analytics_bp
     from routes.search import search_bp
     from routes.rag import rag_bp
+    from routes.users import users_bp
     
     app.register_blueprint(auth_bp)
     app.register_blueprint(tickets_bp)
@@ -33,5 +34,6 @@ def create_app():
     app.register_blueprint(analytics_bp)
     app.register_blueprint(search_bp)
     app.register_blueprint(rag_bp, url_prefix='/rag')
+    app.register_blueprint(users_bp)
     
     return app 
