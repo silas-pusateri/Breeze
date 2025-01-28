@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { Card } from 'primereact/card';
 import { InputTextarea } from 'primereact/inputtextarea';
 import { Button } from 'primereact/button';
@@ -10,11 +10,19 @@ import { fetchWithAuth } from '../utils/api';
 
 const RagSearch: React.FC = () => {
     const navigate = useNavigate();
+    const location = useLocation();
+    const initialQuery = location.state?.initialQuery || '';
     const [query, setQuery] = useState('');
     const [response, setResponse] = useState('');
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
     const [selectedFile, setSelectedFile] = useState<{ title: string; content: string } | null>(null);
+
+    const defaultResponseQuery = "Respond to this ticket citing the relevant policies from the knowledge base, answering politely and to the best of your ability. If the information is not conclusively found within the knowledge base, just say \"I'm sorry, I can't seem to reference the policy in question\", and include the necessary contact information for the department relevant to the ticket. Make sure to include a link to the referenced file if citing specific information from the knowledge base.";
+
+    const handleCreateResponse = () => {
+        setQuery(defaultResponseQuery);
+    };
 
     const handleSubmit = async () => {
         setLoading(true);
@@ -29,9 +37,14 @@ const RagSearch: React.FC = () => {
                 return;
             }
 
+            // Combine ticket information with agent's query if ticket info exists
+            const combinedQuery = initialQuery 
+                ? `Ticket Information:\n${initialQuery}\n\nAdditional Context:\n${query}`
+                : query;
+
             const data = await fetchWithAuth('rag/query', {
                 method: 'POST',
-                body: JSON.stringify({ query })
+                body: JSON.stringify({ query: combinedQuery })
             });
             
             if (data.success) {
@@ -124,12 +137,31 @@ const RagSearch: React.FC = () => {
                     </p>
                 </div>
 
+                {initialQuery && (
+                    <div className="flex flex-column gap-2">
+                        <div className="flex align-items-center justify-content-between">
+                            <label className="font-bold">Ticket Information</label>
+                            <Button
+                                label="Create Response"
+                                icon="pi pi-reply"
+                                severity="secondary"
+                                onClick={handleCreateResponse}
+                                className="p-button-sm"
+                            />
+                        </div>
+                        <div className="w-full font-medium text-900 bg-gray-100 p-3 border-round" style={{ minHeight: '200px' }}>
+                            <ReactMarkdown>{initialQuery}</ReactMarkdown>
+                        </div>
+                    </div>
+                )}
+
                 <div className="flex flex-column gap-2">
+                    <label className="font-bold">Query</label>
                     <InputTextarea
                         value={query}
                         onChange={(e) => setQuery(e.target.value)}
                         rows={3}
-                        placeholder="Enter your query"
+                        placeholder="Enter additional context or questions about this ticket..."
                         className="w-full"
                         autoResize
                     />

@@ -54,16 +54,49 @@ const Dashboard: React.FC = () => {
     navigate(`/edit-ticket/${ticketId}`);
   };
 
+  const handleRagSearch = (ticket: Ticket) => {
+    // Define ticket fields to display and their labels
+    const ticketFields: Array<{key: keyof Ticket; label: string}> = [
+      { key: 'title', label: 'Title' },
+      { key: 'description', label: 'Description' },
+      { key: 'status', label: 'Status' },
+      { key: 'user_email', label: 'Created By' },
+      { key: 'assigned_to', label: 'Assigned To' }
+    ];
+
+    // Build the formatted query string
+    const formattedFields = ticketFields
+      .map(field => {
+        const value = ticket[field.key];
+        // Only include the field if it has a value
+        return value ? `**${field.label}:** ${value}\n` : null;
+      })
+      .filter(Boolean) // Remove null entries
+      .join('\n');
+
+    navigate('/rag-search', { state: { initialQuery: formattedFields } });
+  };
+
   const actionBodyTemplate = (rowData: Ticket) => {
     return (
-      <Button
-        icon="pi pi-pencil"
-        rounded
-        text
-        severity="info"
-        onClick={() => handleEditTicket(rowData.id)}
-        tooltip="Edit Ticket"
-      />
+      <div className="flex gap-2">
+        <Button
+          icon="pi pi-pencil"
+          rounded
+          text
+          severity="info"
+          onClick={() => handleEditTicket(rowData.id)}
+          tooltip="Edit Ticket"
+        />
+        <Button
+          icon="pi pi-search"
+          rounded
+          text
+          severity="help"
+          onClick={() => handleRagSearch(rowData)}
+          tooltip="Search Knowledge Base"
+        />
+      </div>
     );
   };
 
