@@ -1,14 +1,14 @@
 import os
 from typing import List, Dict, Any
-from langchain_community.chat_models import ChatOpenAI
-from langchain_community.embeddings import OpenAIEmbeddings
-from langchain_community.vectorstores import Pinecone
+from langchain_openai import OpenAIEmbeddings, ChatOpenAI
+from langchain_pinecone import PineconeVectorStore
 from langchain_core.prompts import ChatPromptTemplate
 from langchain_core.output_parsers import StrOutputParser
 from langchain_core.runnables import RunnablePassthrough
 from langchain_core.documents import Document
 from pinecone import Pinecone as PineconeClient
 from dotenv import load_dotenv
+import hashlib
 
 # Load environment variables
 load_dotenv()
@@ -22,7 +22,6 @@ class RAGService:
         
         # Initialize Pinecone
         self.pinecone_api_key = os.getenv("PINECONE_API_KEY")
-        self.pinecone_environment = os.getenv("PINECONE_ENVIRONMENT")
         self.pinecone_index_name = os.getenv("PINECONE_INDEX_NAME")
         
         # Initialize components
@@ -31,10 +30,10 @@ class RAGService:
     def _init_components(self):
         """Initialize LangChain components"""
         # Initialize Pinecone client
-        pc = PineconeClient(api_key=self.pinecone_api_key)
+        self.pc = PineconeClient(api_key=self.pinecone_api_key)
         
         # Get the index
-        self.index = pc.Index(self.pinecone_index_name)
+        self.index = self.pc.Index(self.pinecone_index_name)
         
         # Initialize embeddings
         self.embeddings = OpenAIEmbeddings(
@@ -42,8 +41,8 @@ class RAGService:
             openai_api_key=self.openai_api_key
         )
         
-        # Initialize Pinecone vectorstore using langchain community implementation
-        self.vectorstore = Pinecone(
+        # Initialize Pinecone vectorstore
+        self.vectorstore = PineconeVectorStore(
             index=self.index,
             embedding=self.embeddings,
             text_key="text",
@@ -97,6 +96,11 @@ class RAGService:
             | self.llm 
             | StrOutputParser()
         )
+
+    def _generate_stable_id(self, content: str, prefix: str = "") -> str:
+        """Generate a stable ID for a piece of content"""
+        content_hash = hashlib.sha256(content.encode()).hexdigest()[:16]
+        return f"{prefix}_{content_hash}" if prefix else content_hash
     
     async def query(self, question: str) -> str:
         """
@@ -109,11 +113,8 @@ class RAGService:
             str: The generated response
         """
         try:
-            # Add logging for debugging
             print(f"Processing query: {question}")
-            
             response = await self.chain.ainvoke(question)
-            
             print(f"Generated response successfully")
             return response
             
@@ -145,12 +146,81 @@ class RAGService:
             
             # Add documents to vectorstore
             await self.vectorstore.aadd_documents(documents)
-            
             print(f"Successfully added {len(texts)} documents to the vector store")
             
         except Exception as e:
             print(f"Error adding documents to vector store: {str(e)}")
             raise
+
+    async def upsert_knowledge_base_files(self, files: List[Dict[str, Any]]):
+        """
+        Upsert knowledge base files to Pinecone
+        
+        Args:
+            files: List of dictionaries containing file information:
+                  [{"content": str, "title": str, "path": str, "metadata": dict}]
+        """
+        vectors = []
+        
+        for file in files:
+            embedding = await self.embeddings.aembed_query(file["content"])
+            vector = {
+                "id": self._generate_stable_id(file["content"], "kb"),
+                "values": embedding,
+                "metadata": {
+                    "type": "knowledge_base",
+                    "title": file["title"],
+                    "path": file["path"],
+                    "text": file["content"],  # Store as text for retrieval
+                    "content": file["content"],  # Keep content in metadata for backward compatibility
+                    **file.get("metadata", {})
+                }
+            }
+            vectors.append(vector)
+        
+        self.index.upsert(vectors=vectors, namespace="breeze_kb")
+        print(f"Upserted {len(vectors)} knowledge base files to Pinecone")
+    
+    async def upsert_tickets(self, tickets: List[Dict[str, Any]]):
+        """
+        Upsert tickets to Pinecone
+        
+        Args:
+            tickets: List of dictionaries containing ticket information:
+                    [{"content": str, "title": str, "id": str, "metadata": dict}]
+        """
+        vectors = []
+        
+        for ticket in tickets:
+            full_content = f"Title: {ticket['title']}\n\nContent: {ticket['content']}"
+            embedding = await self.embeddings.aembed_query(full_content)
+            
+            vector = {
+                "id": self._generate_stable_id(full_content, f"ticket_{ticket['id']}"),
+                "values": embedding,
+                "metadata": {
+                    "type": "ticket",
+                    "ticket_id": ticket["id"],
+                    "title": ticket["title"],
+                    "content": ticket["content"],
+                    **ticket.get("metadata", {})
+                }
+            }
+            vectors.append(vector)
+        
+        self.index.upsert(vectors=vectors, namespace="breeze_tickets")
+        print(f"Upserted {len(vectors)} tickets to Pinecone")
+    
+    async def delete_by_ids(self, ids: List[str], namespace: str):
+        """
+        Delete vectors by their IDs from a specific namespace
+        
+        Args:
+            ids: List of vector IDs to delete
+            namespace: Namespace to delete from ("breeze_kb" or "breeze_tickets")
+        """
+        self.index.delete(ids=ids, namespace=namespace)
+        print(f"Deleted {len(ids)} vectors from namespace {namespace}")
 
 # Initialize RAG service as a singleton
 rag_service = RAGService() 

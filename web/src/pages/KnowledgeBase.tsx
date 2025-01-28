@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { DataTable } from 'primereact/datatable';
 import { Column } from 'primereact/column';
@@ -24,20 +24,17 @@ const KnowledgeBase: React.FC = () => {
   const navigate = useNavigate();
   const [files, setFiles] = useState<KnowledgeFile[]>([]);
   const [error, setError] = useState<string | null>(null);
-  const [loading, setLoading] = useState(true);
+  const [tableLoading, setTableLoading] = useState(true);
+  const [uploading, setUploading] = useState(false);
   const [selectedFile, setSelectedFile] = useState<KnowledgeFile | null>(null);
   const [markdownContent, setMarkdownContent] = useState<string>('');
   const [viewDialogVisible, setViewDialogVisible] = useState(false);
   const toast = useRef<Toast>(null);
   const fileUploadRef = useRef<FileUpload>(null);
 
-  useEffect(() => {
-    fetchFiles();
-  }, []);
-
-  const fetchFiles = async () => {
+  const fetchFiles = useCallback(async () => {
     try {
-      setLoading(true);
+      setTableLoading(true);
       const data = await fetchWithAuth('knowledge/files');
       setFiles(data);
       setError(null);
@@ -54,43 +51,89 @@ const KnowledgeBase: React.FC = () => {
         life: 3000
       });
     } finally {
-      setLoading(false);
+      setTableLoading(false);
     }
-  };
+  }, [navigate]);
+
+  useEffect(() => {
+    const token = localStorage.getItem('token');
+    const refreshToken = localStorage.getItem('refresh_token');
+    if (!token || !refreshToken) {
+      navigate('/login');
+      return;
+    }
+    fetchFiles();
+  }, [navigate, fetchFiles]);
 
   const handleFileUpload = async (event: { files: File[] }) => {
     const file = event.files[0];
     if (!file) return;
 
+    const token = localStorage.getItem('token');
+    const refreshToken = localStorage.getItem('refresh_token');
+    
+    if (!token || !refreshToken) {
+      toast.current?.show({
+        severity: 'error',
+        summary: 'Authentication Error',
+        detail: 'Please log in again to upload files',
+        life: 5000
+      });
+      navigate('/login');
+      return;
+    }
+
+    setUploading(true);
+    setError(null);
+
     const formData = new FormData();
     formData.append('file', file);
 
     try {
-      await fetchWithAuth('knowledge/upload', {
+      const uploadResponse = await fetchWithAuth('knowledge/upload', {
         method: 'POST',
         body: formData,
-        // Don't set Content-Type header for FormData
-        headers: {}
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'X-Refresh-Token': refreshToken
+        }
       });
 
-      await fetchFiles();
       if (fileUploadRef.current) {
         fileUploadRef.current.clear();
       }
+
       toast.current?.show({
         severity: 'success',
-        summary: 'Success',
-        detail: 'File uploaded successfully',
-        life: 3000
+        summary: 'File Uploaded Successfully',
+        detail: `${uploadResponse.file.filename} (${formatFileSize(uploadResponse.file.file_size)})${uploadResponse.file.indexed ? ' - Indexed for search' : ''}`,
+        life: 5000
       });
+
+      // Fetch updated files list
+      await fetchFiles();
+
     } catch (error) {
       console.error('Failed to upload file:', error);
-      toast.current?.show({
-        severity: 'error',
-        summary: 'Error',
-        detail: error instanceof Error ? error.message : 'Failed to upload file',
-        life: 3000
-      });
+      
+      if (error instanceof Error && error.message.includes('Authentication required')) {
+        toast.current?.show({
+          severity: 'error',
+          summary: 'Authentication Error',
+          detail: 'Please log in again to upload files',
+          life: 5000
+        });
+        navigate('/login');
+      } else {
+        toast.current?.show({
+          severity: 'error',
+          summary: 'Upload Failed',
+          detail: error instanceof Error ? error.message : 'Failed to upload file',
+          life: 5000
+        });
+      }
+    } finally {
+      setUploading(false);
     }
   };
 
@@ -228,16 +271,23 @@ const KnowledgeBase: React.FC = () => {
       <div className="flex flex-column gap-4">
         <div className="flex align-items-center justify-content-between">
           <h1 className="text-4xl font-bold m-0">Knowledge Base</h1>
-          <FileUpload
-            ref={fileUploadRef}
-            mode="basic"
-            accept=".md,.txt,.pdf,.doc,.docx"
-            maxFileSize={10000000}
-            customUpload
-            uploadHandler={handleFileUpload}
-            auto
-            chooseLabel="Upload File"
-          />
+          <div className="relative">
+            <FileUpload
+              ref={fileUploadRef}
+              mode="basic"
+              accept=".md,.txt,.pdf,.doc,.docx"
+              maxFileSize={10000000}
+              customUpload
+              uploadHandler={handleFileUpload}
+              auto
+              chooseLabel={uploading ? "Uploading..." : "Upload File"}
+              disabled={uploading}
+              className={uploading ? 'p-button-secondary' : ''}
+            />
+            {uploading && (
+              <i className="pi pi-spin pi-spinner absolute right-4 top-1/2 -translate-y-1/2" />
+            )}
+          </div>
         </div>
 
         {error && (
@@ -251,7 +301,9 @@ const KnowledgeBase: React.FC = () => {
           rowsPerPageOptions={[5, 10, 25, 50]}
           tableStyle={{ minWidth: '50rem' }}
           className="p-datatable-striped"
-          loading={loading}
+          loading={tableLoading}
+          sortField="uploaded_at"
+          sortOrder={-1}
         >
           <Column field="filename" header="Filename" sortable style={{ width: '30%' }} />
           <Column field="file_type" header="Type" sortable style={{ width: '10%' }} />
