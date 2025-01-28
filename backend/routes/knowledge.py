@@ -46,6 +46,7 @@ async def upload_file():
             session = supabase_client.auth.set_session(token, refresh_token)
             logger.info(f"Session user metadata: {session.user.user_metadata}")
             logger.info(f"Session user role: {session.user.user_metadata.get('role')}")
+            logger.info(f"Session user ID: {session.user.id}")
         except Exception as auth_error:
             logger.error(f"Authentication error: {str(auth_error)}")
             return jsonify({'error': 'Authentication failed'}), 401
@@ -85,7 +86,7 @@ async def upload_file():
             'file_type': file_type,
             'content': file_content,
             'file_size': file_size,
-            'uploaded_by': user['email'],
+            'uploaded_by': session.user.id,
             'uploaded_at': datetime.now().isoformat()
         }
         
@@ -128,6 +129,9 @@ async def upload_file():
                     logger.error(f"Failed to index file in Pinecone: {str(index_error)}")
                     # Don't fail the upload if indexing fails
             
+            # Get user email for response
+            user_email = user['email']
+            
             return jsonify({
                 'message': 'File uploaded successfully',
                 'file': {
@@ -135,7 +139,7 @@ async def upload_file():
                     'filename': filename,
                     'file_type': file_type,
                     'file_size': file_size,
-                    'uploaded_by': user['email'],
+                    'uploaded_by': user_email,
                     'uploaded_at': file_data['uploaded_at'],
                     'indexed': indexed
                 },
@@ -163,9 +167,10 @@ def list_files():
         if not token or not refresh_token:
             return jsonify({'error': 'No authorization tokens provided'}), 401
 
-        # Set the session
-        supabase_client.auth.set_session(token, refresh_token)
+        # Set the session and get current user
+        session = supabase_client.auth.set_session(token, refresh_token)
         
+        # First get all files
         result = (
             supabase_client
             .table('knowledge_files')
@@ -173,7 +178,41 @@ def list_files():
             .execute()
         )
         
-        return jsonify(result.data if hasattr(result, 'data') and result.data else []), 200
+        if not hasattr(result, 'data') or not result.data:
+            return jsonify([]), 200
+            
+        # Collect unique user IDs
+        user_ids = list(set(file['uploaded_by'] for file in result.data if file.get('uploaded_by')))
+        
+        # Create a mapping of user IDs to emails using RPC function
+        user_emails = {}
+        for user_id in user_ids:
+            try:
+                # Call the get_user_email RPC function
+                email_result = (
+                    supabase_client
+                    .rpc('get_user_email', {'user_id': user_id})
+                    .execute()
+                )
+                if hasattr(email_result, 'data') and email_result.data:
+                    user_emails[user_id] = email_result.data
+                else:
+                    user_emails[user_id] = 'Unknown User'
+            except Exception as e:
+                logger.error(f"Failed to get email for user {user_id}: {str(e)}")
+                user_emails[user_id] = 'Unknown User'
+        
+        # Transform the response with resolved emails
+        files_data = [{
+            'id': file['id'],
+            'filename': file['filename'],
+            'file_type': file['file_type'],
+            'file_size': file['file_size'],
+            'uploaded_by': user_emails.get(file['uploaded_by'], 'Unknown User'),
+            'uploaded_at': file['uploaded_at']
+        } for file in result.data]
+        
+        return jsonify(files_data), 200
 
     except Exception as e:
         logger.error(f"Failed to list files: {str(e)}")

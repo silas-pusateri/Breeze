@@ -194,3 +194,4 @@ schema.sql
 .env.development.local
 .env.test.local
 .env.*.local
+schema_full.sql

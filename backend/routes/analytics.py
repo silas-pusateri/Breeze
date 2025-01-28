@@ -34,15 +34,15 @@ def get_widgets():
         if not client or not user:
             return jsonify({'error': 'Failed to initialize Supabase client'}), 500
 
-        logger.info(f"User email: {user.email}")
+        logger.info(f"User ID: {user.id}")
         
-        # Query widgets based on user's email
-        logger.info(f"Querying widgets for user: {user.email}")
+        # Query widgets based on user's ID
+        logger.info(f"Querying widgets for user ID: {user.id}")
         result = (
             client
             .table('dashboard_widgets')
             .select('*')
-            .eq('user_email', user.email)
+            .eq('user_id', user.id)
             .execute()
         )
         
@@ -75,7 +75,7 @@ def save_widgets():
         if not client or not user:
             return jsonify({'error': 'Failed to initialize Supabase client'}), 500
 
-        logger.info(f"User email: {user.email}")
+        logger.info(f"User ID: {user.id}")
         
         data = request.get_json()
         if not data or not isinstance(data, list):
@@ -85,12 +85,12 @@ def save_widgets():
         logger.info(f"Received {len(data)} widgets to save")
 
         # Delete existing widgets for this user
-        logger.info(f"Deleting existing widgets for user: {user.email}")
+        logger.info(f"Deleting existing widgets for user ID: {user.id}")
         delete_result = (
             client
             .table('dashboard_widgets')
             .delete()
-            .eq('user_email', user.email)
+            .eq('user_id', user.id)
             .execute()
         )
         logger.info(f"Delete result: {delete_result}")
@@ -98,7 +98,7 @@ def save_widgets():
         # Insert new widgets
         logger.info("Preparing widget data for insertion...")
         widget_data = [{
-            'user_email': user.email,
+            'user_id': user.id,
             'widget_data': widget,
             'created_at': datetime.now().isoformat(),
             'updated_at': datetime.now().isoformat()
