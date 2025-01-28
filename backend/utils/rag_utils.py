@@ -111,6 +111,9 @@ class RAGService:
             
         Returns:
             str: The generated response
+            
+        Raises:
+            Exception: If there's an error processing the query
         """
         try:
             print(f"Processing query: {question}")
@@ -119,8 +122,16 @@ class RAGService:
             return response
             
         except Exception as e:
-            print(f"Error querying RAG system: {str(e)}")
-            raise
+            error_msg = str(e)
+            if "rate limit" in error_msg.lower():
+                print(f"OpenAI API rate limit exceeded: {error_msg}")
+                raise Exception("Rate limit exceeded. Please try again in a moment.")
+            elif "maximum context length" in error_msg.lower():
+                print(f"Context length exceeded: {error_msg}")
+                raise Exception("The query context is too long. Please try a shorter query or reduce the context window.")
+            else:
+                print(f"Error querying RAG system: {error_msg}")
+                raise
     
     async def add_documents(self, texts: List[str], metadata: List[Dict[str, Any]] = None):
         """
