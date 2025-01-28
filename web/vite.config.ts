@@ -6,7 +6,8 @@ export default defineConfig({
   plugins: [react()],
   resolve: {
     alias: {
-      '@': path.resolve(__dirname, './src')
+      '@': path.resolve(__dirname, './src'),
+      'axios': 'axios/dist/axios.cjs'
     },
     dedupe: ['react', 'react-dom']
   },
@@ -36,7 +37,11 @@ export default defineConfig({
         changeOrigin: true,
         secure: false,
       }
-    }
+    },
+    watch: {
+      usePolling: true
+    },
+    strictPort: true
   },
   build: {
     outDir: 'dist',

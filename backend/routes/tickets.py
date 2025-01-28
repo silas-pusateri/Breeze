@@ -4,6 +4,8 @@ from config import supabase_client, logger
 from postgrest import APIError
 import traceback
 from .auth import requires_auth, get_user_from_token
+from utils.rag_utils import rag_service
+from utils.async_utils import async_route
 
 tickets_bp = Blueprint('tickets', __name__)
 
@@ -18,7 +20,8 @@ def get_supabase_client(access_token, refresh_token):
 
 @tickets_bp.route('/tickets', methods=['POST'])
 @requires_auth
-def create_ticket():
+@async_route
+async def create_ticket():
     try:
         # Get the raw token without 'Bearer ' prefix
         auth_header = request.headers.get('Authorization', '')
@@ -77,7 +80,19 @@ def create_ticket():
             logger.info(f"Insert result: {result}")
             
             if hasattr(result, 'data') and result.data:
-                return jsonify(result.data[0]), 201
+                # After successful ticket creation, upsert to Pinecone
+                ticket = result.data[0]
+                await rag_service.upsert_tickets([{
+                    'id': str(ticket['id']),
+                    'title': ticket['title'],
+                    'content': ticket['description'],
+                    'metadata': {
+                        'user_email': ticket['user_email'],
+                        'status': ticket['status'],
+                        'created_at': ticket['created_at']
+                    }
+                }])
+                return jsonify(ticket), 201
             else:
                 return jsonify({'error': 'No data returned from insert operation'}), 500
                 
@@ -204,7 +219,8 @@ def get_ticket(ticket_id):
 
 @tickets_bp.route('/tickets/<int:ticket_id>', methods=['PUT'])
 @requires_auth
-def update_ticket(ticket_id):
+@async_route
+async def update_ticket(ticket_id):
     try:
         # Get the raw token without 'Bearer ' prefix
         auth_header = request.headers.get('Authorization', '')
@@ -259,6 +275,19 @@ def update_ticket(ticket_id):
         )
         
         if hasattr(update_result, 'data') and update_result.data:
+            # After successful ticket update, upsert to Pinecone
+            ticket = update_result.data[0]
+            await rag_service.upsert_tickets([{
+                'id': str(ticket['id']),
+                'title': ticket['title'],
+                'content': ticket['description'],
+                'metadata': {
+                    'user_email': ticket['user_email'],
+                    'status': ticket['status'],
+                    'created_at': ticket['created_at'],
+                    'updated_at': datetime.now().isoformat()
+                }
+            }])
             return jsonify(update_result.data[0])
         else:
             return jsonify({'error': 'Failed to update ticket'}), 500

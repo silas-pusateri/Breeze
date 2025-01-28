@@ -1,11 +1,13 @@
 import React, { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Card } from 'primereact/card';
 import { InputTextarea } from 'primereact/inputtextarea';
 import { Button } from 'primereact/button';
 import { Message } from 'primereact/message';
-import axios from 'axios';
+import { fetchWithAuth } from '../utils/api';
 
 const RagSearch: React.FC = () => {
+    const navigate = useNavigate();
     const [query, setQuery] = useState('');
     const [response, setResponse] = useState('');
     const [loading, setLoading] = useState(false);
@@ -16,16 +18,18 @@ const RagSearch: React.FC = () => {
         setError(null);
         try {
             const token = localStorage.getItem('token');
-            const { data } = await axios.post(
-                '/api/rag/query',
-                { query },
-                {
-                    headers: {
-                        'Authorization': `Bearer ${token}`,
-                        'Content-Type': 'application/json'
-                    }
-                }
-            );
+            const refreshToken = localStorage.getItem('refresh_token');
+            
+            if (!token || !refreshToken) {
+                setError('Please log in to use the search feature');
+                navigate('/login');
+                return;
+            }
+
+            const data = await fetchWithAuth('rag/query', {
+                method: 'POST',
+                body: JSON.stringify({ query })
+            });
             
             if (data.success) {
                 setResponse(data.response);
@@ -34,7 +38,12 @@ const RagSearch: React.FC = () => {
             }
         } catch (error) {
             console.error('Error fetching RAG response:', error);
-            setError('Failed to get response. Please try again.');
+            if (error instanceof Error && error.message.includes('Authentication required')) {
+                setError('Please log in to use the search feature');
+                navigate('/login');
+            } else {
+                setError('Failed to get response. Please try again.');
+            }
             setResponse('');
         } finally {
             setLoading(false);

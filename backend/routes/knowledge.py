@@ -8,6 +8,8 @@ from .auth import get_user_from_token, requires_auth, requires_agent
 from config import supabase_client, logger
 import traceback
 import base64
+from utils.rag_utils import rag_service
+from utils.async_utils import async_route
 
 knowledge_bp = Blueprint('knowledge', __name__)
 
@@ -18,7 +20,8 @@ def allowed_file(filename):
 
 @knowledge_bp.route('/knowledge/upload', methods=['POST'])
 @requires_agent
-def upload_file():
+@async_route
+async def upload_file():
     if 'file' not in request.files:
         return jsonify({'error': 'No file part'}), 400
     
@@ -38,13 +41,20 @@ def upload_file():
         if not token or not refresh_token:
             return jsonify({'error': 'No authorization tokens provided'}), 401
 
-        # Set the session first
-        session = supabase_client.auth.set_session(token, refresh_token)
-        logger.info(f"Session user metadata: {session.user.user_metadata}")
-        logger.info(f"Session user role: {session.user.user_metadata.get('role')}")
+        try:
+            # Set the session first
+            session = supabase_client.auth.set_session(token, refresh_token)
+            logger.info(f"Session user metadata: {session.user.user_metadata}")
+            logger.info(f"Session user role: {session.user.user_metadata.get('role')}")
+        except Exception as auth_error:
+            logger.error(f"Authentication error: {str(auth_error)}")
+            return jsonify({'error': 'Authentication failed'}), 401
         
         # Then get user info
         user = get_user_from_token(request)
+        if not user:
+            return jsonify({'error': 'Invalid user token'}), 401
+            
         logger.info(f"User info from token: {user}")
         
         filename = secure_filename(file.filename)
@@ -84,17 +94,57 @@ def upload_file():
         logger.info(f"Current auth state - has session: {bool(supabase_client.auth.get_session())}")
         logger.info(f"File content preview: {file_content[:100] if isinstance(file_content, str) else '<binary>'}")
         
-        result = (
-            supabase_client
-            .table('knowledge_files')
-            .insert(file_data)
-            .execute()
-        )
-        
-        if hasattr(result, 'data') and result.data:
-            return jsonify({'message': 'File uploaded successfully', 'id': result.data[0]['id']}), 201
-        else:
-            return jsonify({'error': 'Failed to upload file'}), 500
+        try:
+            result = (
+                supabase_client
+                .table('knowledge_files')
+                .insert(file_data)
+                .execute()
+            )
+            
+            if not hasattr(result, 'data') or not result.data:
+                return jsonify({'error': 'Failed to save file to database'}), 500
+                
+            file_record = result.data[0]
+            
+            # Only upsert text-based files to Pinecone
+            indexed = False
+            if file_type in ['txt', 'md']:
+                try:
+                    await rag_service.upsert_knowledge_base_files([{
+                        'content': file_content,
+                        'title': filename,
+                        'path': filename,
+                        'metadata': {
+                            'file_type': file_type,
+                            'file_size': file_size,
+                            'uploaded_by': user['email'],
+                            'uploaded_at': file_data['uploaded_at'],
+                            'id': str(file_record['id'])
+                        }
+                    }])
+                    indexed = True
+                except Exception as index_error:
+                    logger.error(f"Failed to index file in Pinecone: {str(index_error)}")
+                    # Don't fail the upload if indexing fails
+            
+            return jsonify({
+                'message': 'File uploaded successfully',
+                'file': {
+                    'id': file_record['id'],
+                    'filename': filename,
+                    'file_type': file_type,
+                    'file_size': file_size,
+                    'uploaded_by': user['email'],
+                    'uploaded_at': file_data['uploaded_at'],
+                    'indexed': indexed
+                },
+                'success': True
+            }), 201
+            
+        except Exception as db_error:
+            logger.error(f"Database error: {str(db_error)}")
+            return jsonify({'error': 'Failed to save file to database'}), 500
 
     except Exception as e:
         logger.error(f"Failed to upload file: {str(e)}")

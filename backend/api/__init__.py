@@ -32,6 +32,6 @@ def create_app():
     app.register_blueprint(knowledge_bp)
     app.register_blueprint(analytics_bp)
     app.register_blueprint(search_bp)
-    app.register_blueprint(rag_bp, url_prefix='/api/rag')
+    app.register_blueprint(rag_bp, url_prefix='/rag')
     
     return app 
