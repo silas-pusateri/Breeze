@@ -80,3 +80,75 @@ if ! docker compose up --build; then
     echo "Error: Failed to start services. Check the error message above."
     exit 1
 fi
+
+# Function to check if Supabase is running
+check_supabase() {
+    curl -s http://localhost:54321/rest/v1/ > /dev/null
+    return $?
+}
+
+# Function to start Supabase
+start_supabase() {
+    echo "Starting Supabase..."
+    supabase start
+    
+    # Wait for Supabase to be ready
+    while ! check_supabase; do
+        echo "Waiting for Supabase to be ready..."
+        sleep 5
+    done
+    echo "Supabase is ready!"
+    
+    # Get and export Supabase credentials
+    export SUPABASE_LOCAL_URL="http://localhost:54321"
+    export SUPABASE_LOCAL_ANON_KEY=$(supabase status | grep anon | awk '{print $4}')
+    export SUPABASE_LOCAL_SERVICE_KEY=$(supabase status | grep service_role | awk '{print $4}')
+    
+    # Update .env file with local credentials
+    if [ ! -f .env ]; then
+        cp .env.example .env
+    fi
+    
+    # Update or add Supabase local environment variables
+    sed -i.bak '/SUPABASE_LOCAL_URL/d' .env
+    sed -i.bak '/SUPABASE_LOCAL_ANON_KEY/d' .env
+    sed -i.bak '/SUPABASE_LOCAL_SERVICE_KEY/d' .env
+    sed -i.bak '/IS_LOCAL/d' .env
+    
+    echo "SUPABASE_LOCAL_URL=$SUPABASE_LOCAL_URL" >> .env
+    echo "SUPABASE_LOCAL_ANON_KEY=$SUPABASE_LOCAL_ANON_KEY" >> .env
+    echo "SUPABASE_LOCAL_SERVICE_KEY=$SUPABASE_LOCAL_SERVICE_KEY" >> .env
+    echo "IS_LOCAL=true" >> .env
+    
+    rm -f .env.bak
+}
+
+# Function to stop everything
+stop_all() {
+    echo "Stopping Docker containers..."
+    docker-compose -f docker-compose.local.yml down
+    
+    echo "Stopping Supabase..."
+    supabase stop
+}
+
+# Main script
+case "$1" in
+    "start")
+        start_supabase
+        echo "Starting Docker containers..."
+        docker-compose -f docker-compose.local.yml up --build
+        ;;
+    "stop")
+        stop_all
+        ;;
+    "restart")
+        stop_all
+        start_supabase
+        docker-compose -f docker-compose.local.yml up --build
+        ;;
+    *)
+        echo "Usage: $0 {start|stop|restart}"
+        exit 1
+        ;;
+esac

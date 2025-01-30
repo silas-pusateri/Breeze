@@ -25,7 +25,7 @@ services:
       - FLASK_ENV=production
       - FLASK_DEBUG=0
       - SUPABASE_URL=${SUPABASE_URL}
-      - SUPABASE_KEY=${SUPABASE_KEY}
+      - SUPABASE_ANON_KEY=${SUPABASE_ANON_KEY}
       # Add CORS settings for EC2
       - ALLOWED_ORIGINS=http://${EC2_PUBLIC_IP}
     env_file:
