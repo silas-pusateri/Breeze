@@ -198,3 +198,5 @@ schema_full.sql
 .vscode/extensions.json
 .vscode/settings.json
 BreezeyOuttaHere.code-workspace
+supabase/config.toml
+supabase/config.toml

@@ -2,7 +2,6 @@ import os
 from dotenv import load_dotenv
 from supabase import create_client, Client
 import logging
-import socket
 from urllib.parse import urlparse
 
 # Set up logging
@@ -19,18 +18,13 @@ class Config:
     
     if IS_LOCAL:
         logger.info("Local development mode detected")
-        # Get the local URL from environment, defaulting to host.docker.internal for Docker networking
+        # Get the local URL from environment
         local_url = os.getenv('SUPABASE_LOCAL_URL', 'http://host.docker.internal:54321')
         logger.info(f"Raw local URL from env: {local_url}")
         
         # Ensure local URL uses http:// and not https://
         if local_url.startswith('https://'):
             local_url = 'http://' + local_url[8:]
-            
-        # If URL contains localhost or 127.0.0.1, replace with host.docker.internal for Docker networking
-        if 'localhost:' in local_url or '127.0.0.1:' in local_url:
-            local_url = local_url.replace('localhost:', 'host.docker.internal:')
-            local_url = local_url.replace('127.0.0.1:', 'host.docker.internal:')
             
         SUPABASE_URL = local_url
         SUPABASE_ANON_KEY = os.getenv('SUPABASE_LOCAL_ANON_KEY', SUPABASE_ANON_KEY)
@@ -51,31 +45,8 @@ if not Config.SUPABASE_URL or not Config.SUPABASE_ANON_KEY:
     raise ValueError("Supabase URL and anon key must be set")
 
 logger.info(f"Initializing Supabase client with URL: {Config.SUPABASE_URL}")
-try:
-    # Parse URL properly to get host and port
-    parsed_url = urlparse(Config.SUPABASE_URL)
-    host = parsed_url.hostname
-    # Use parsed port if available, otherwise use default based on scheme
-    port = parsed_url.port or (54321 if Config.IS_LOCAL else 443)
-    
-    logger.info(f"Attempting to connect to Supabase at {host}:{port}")
-    
-    try:
-        sock = socket.create_connection((host, port), timeout=5)
-        sock.close()
-        logger.info(f"Successfully connected to Supabase host {host}:{port}")
-    except Exception as conn_error:
-        logger.error(f"Failed to connect to Supabase host {host}:{port}: {str(conn_error)}")
-        if Config.IS_LOCAL:
-            logger.error("For local development, ensure:")
-            logger.error("1. Supabase is running (supabase status)")
-            logger.error("2. The port 54321 is accessible")
-            logger.error("3. host.docker.internal is properly resolved")
-            logger.error(f"Current environment variables:")
-            logger.error(f"SUPABASE_LOCAL_URL={os.getenv('SUPABASE_LOCAL_URL')}")
-            logger.error(f"IS_LOCAL={os.getenv('IS_LOCAL')}")
-        raise
 
+try:
     # Initialize Supabase client
     supabase_client: Client = create_client(
         supabase_url=Config.SUPABASE_URL,
@@ -86,6 +57,14 @@ except Exception as e:
     logger.error(f"Failed to initialize Supabase client: {str(e)}")
     logger.error(f"Error type: {type(e)}")
     logger.error(f"Error details: {str(e)}")
+    if Config.IS_LOCAL:
+        logger.error("For local development, ensure:")
+        logger.error("1. Supabase is running (supabase status)")
+        logger.error("2. The port 54321 is accessible")
+        logger.error("3. host.docker.internal is properly resolved")
+        logger.error(f"Current environment variables:")
+        logger.error(f"SUPABASE_LOCAL_URL={os.getenv('SUPABASE_LOCAL_URL')}")
+        logger.error(f"IS_LOCAL={os.getenv('IS_LOCAL')}")
     raise
 
 __all__ = ['Config', 'supabase_client']
