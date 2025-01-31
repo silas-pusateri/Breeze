@@ -1,12 +1,13 @@
+version: '3.8'
 services:
   frontend:
     build: 
-      context: ./web
+      context: ./frontend
       dockerfile: Dockerfile.dev
     ports:
-      - "127.0.0.1:3000:3000"
+      - "127.0.0.1:5173:5173"
     volumes:
-      - ./web:/app
+      - ./frontend:/app
       - /app/node_modules
     environment:
       - VITE_API_URL=http://localhost:5001
@@ -14,7 +15,7 @@ services:
       backend:
         condition: service_healthy
     healthcheck:
-      test: ["CMD", "wget", "-q", "--spider", "http://localhost:3000"]
+      test: ["CMD", "wget", "-q", "--spider", "http://localhost:5173"]
       interval: 10s
       timeout: 5s
       retries: 3
@@ -24,7 +25,7 @@ services:
 
   backend:
     build: 
-      context: .
+      context: ./backend
       dockerfile: Dockerfile.dev
     ports:
       - "127.0.0.1:5001:5001"
@@ -33,10 +34,10 @@ services:
     environment:
       - FLASK_ENV=development
       - FLASK_DEBUG=1
-      - ALLOWED_ORIGINS=http://localhost:3000
+      - ALLOWED_ORIGINS=http://localhost:5173
     env_file:
       - .env
-    command: ["python", "main.py"]
+    command: ["python", "app.py"]
     healthcheck:
       test: ["CMD", "curl", "-f", "http://127.0.0.1:5001/health"]
       interval: 10s
@@ -45,8 +46,9 @@ services:
       start_period: 10s
     restart: unless-stopped
     stop_grace_period: 10s
+    depends_on: []
 
 networks:
   default:
-    driver: bridge
-    name: breeze_network 
+    name: breeze_network
+    external: true 

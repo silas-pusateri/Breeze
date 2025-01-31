@@ -1,0 +1,16 @@
+FROM node:18-alpine
+
+WORKDIR /app
+
+# Install system dependencies
+RUN apk add --no-cache wget
+
+# Install dependencies
+COPY package*.json ./
+RUN npm install
+
+# Don't copy source code - it will be mounted as a volume
+
+EXPOSE 5173
+
+CMD ["npm", "run", "dev"] 

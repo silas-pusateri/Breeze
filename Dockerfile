@@ -22,4 +22,4 @@ USER appuser
 EXPOSE 5001
 
 # Run the application with gunicorn
-CMD ["gunicorn", "--bind", "0.0.0.0:5001", "--workers", "4", "--timeout", "120", "main:app"] 
+CMD ["gunicorn", "--bind", "0.0.0.0:5001", "--workers", "4", "--timeout", "120", "app:app"] 
