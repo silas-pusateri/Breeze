@@ -5,6 +5,10 @@ import { DataTable } from 'primereact/datatable';
 import { Column } from 'primereact/column';
 import { Message } from 'primereact/message';
 import { fetchWithAuth } from '../utils/api';
+import { Tag } from 'primereact/tag';
+import { Avatar } from 'primereact/avatar';
+import { AvatarGroup } from 'primereact/avatargroup';
+import { Tooltip } from 'primereact/tooltip';
 import './Dashboard.css';
 
 interface Ticket {
@@ -14,7 +18,15 @@ interface Ticket {
   status: string;
   created_at: string;
   user_email: string;
-  assigned_to?: string;
+  username: string;
+  assignee: string[];
+  responses: Array<{
+    content: string;
+    created_at: string;
+    user_email: string;
+    username: string;
+  }>;
+  related_uuids: string[];
 }
 
 const Dashboard: React.FC = () => {
@@ -54,15 +66,86 @@ const Dashboard: React.FC = () => {
     navigate(`/edit-ticket/${ticketId}`);
   };
 
-  const actionBodyTemplate = (rowData: Ticket) => {
+  const handleRagSearch = (ticket: Ticket) => {
+    // Define ticket fields to display and their labels
+    const ticketFields: Array<{key: keyof Ticket; label: string}> = [
+      { key: 'title', label: 'Title' },
+      { key: 'description', label: 'Description' },
+      { key: 'status', label: 'Status' },
+      { key: 'user_email', label: 'Created By' },
+      { key: 'assignee', label: 'Assigned To' }
+    ];
+
+    // Build the formatted query string
+    const formattedFields = ticketFields
+      .map(field => {
+        const value = ticket[field.key];
+        // Only include the field if it has a value
+        return value ? `**${field.label}:** ${value}\n` : null;
+      })
+      .filter(Boolean) // Remove null entries
+      .join('\n');
+
+    navigate('/rag-search', { state: { initialQuery: formattedFields } });
+  };
+
+  const assigneeBodyTemplate = (rowData: Ticket) => {
+    if (!rowData.assignee || rowData.assignee.length === 0) {
+      return <span className="text-500">Unassigned</span>;
+    }
+
     return (
-      <Button
-        icon="pi pi-pencil"
-        rounded
-        text
-        severity="info"
-        onClick={() => handleEditTicket(rowData.id)}
-        tooltip="Edit Ticket"
+      <>
+        <AvatarGroup className="justify-content-start">
+          {rowData.assignee.slice(0, 3).map((email, index) => (
+            <Avatar
+              key={index}
+              label={email.charAt(0).toUpperCase()}
+              size="normal"
+              shape="circle"
+              className="custom-avatar"
+            />
+          ))}
+          {rowData.assignee.length > 3 && (
+            <Avatar 
+              label={`+${rowData.assignee.length - 3}`}
+              size="normal"
+              shape="circle"
+              className="custom-avatar-more"
+            />
+          )}
+        </AvatarGroup>
+        <Tooltip target=".custom-avatar, .custom-avatar-more">
+          <div className="flex flex-column">
+            {rowData.assignee.map((email, index) => (
+              <span key={index}>{email}</span>
+            ))}
+          </div>
+        </Tooltip>
+      </>
+    );
+  };
+
+  const statusBodyTemplate = (rowData: Ticket) => {
+    const getSeverity = (status: string) => {
+      switch (status.toLowerCase()) {
+        case 'open':
+          return 'info';
+        case 'in_progress':
+          return 'warning';
+        case 'resolved':
+          return 'success';
+        case 'closed':
+          return 'danger';
+        default:
+          return null;
+      }
+    };
+
+    return (
+      <Tag 
+        value={rowData.status.replace('_', ' ')} 
+        severity={getSeverity(rowData.status)}
       />
     );
   };
@@ -71,11 +154,26 @@ const Dashboard: React.FC = () => {
     return new Date(rowData.created_at).toLocaleDateString();
   };
 
-  const statusBodyTemplate = (rowData: Ticket) => {
+  const actionBodyTemplate = (rowData: Ticket) => {
     return (
-      <span className={`status-badge status-${rowData.status.toLowerCase()}`}>
-        {rowData.status}
-      </span>
+      <div className="flex gap-2">
+        <Button
+          icon="pi pi-pencil"
+          rounded
+          text
+          severity="info"
+          onClick={() => handleEditTicket(rowData.id)}
+          tooltip="Edit Ticket"
+        />
+        <Button
+          icon="pi pi-search"
+          rounded
+          text
+          severity="help"
+          onClick={() => handleRagSearch(rowData)}
+          tooltip="Search Knowledge Base"
+        />
+      </div>
     );
   };
 
@@ -107,15 +205,15 @@ const Dashboard: React.FC = () => {
           <Column field="id" header="ID" sortable style={{ width: '5%' }} />
           <Column field="title" header="Title" sortable style={{ width: '25%' }} />
           <Column field="status" header="Status" body={statusBodyTemplate} sortable style={{ width: '10%' }} />
-          <Column field="user_email" header="Created By" sortable style={{ width: '20%' }} />
+          <Column field="username" header="Created By" sortable style={{ width: '15%' }} />
           <Column field="created_at" header="Created At" body={dateBodyTemplate} sortable style={{ width: '15%' }} />
           {userRole === 'agent' && (
             <Column
-              field="assigned_to"
+              field="assignee"
               header="Assigned To"
-              body={(rowData) => rowData.assigned_to || 'Unassigned'}
+              body={assigneeBodyTemplate}
               sortable
-              style={{ width: '15%' }}
+              style={{ width: '20%' }}
             />
           )}
           <Column body={actionBodyTemplate} header="Actions" style={{ width: '10%' }} />

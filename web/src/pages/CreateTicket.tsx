@@ -1,25 +1,63 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Card } from 'primereact/card';
 import { InputText } from 'primereact/inputtext';
 import { InputTextarea } from 'primereact/inputtextarea';
 import { Button } from 'primereact/button';
 import { Message } from 'primereact/message';
+import { MultiSelect } from 'primereact/multiselect';
+import { fetchWithAuth } from '../utils/api';
+
+interface FormData {
+  title: string;
+  description: string;
+  assignee: string[];  // This will store UIDs instead of emails
+}
+
+interface Agent {
+  id: string;  // Supabase UID
+  email: string;
+  name: string;
+}
 
 const CreateTicket: React.FC = () => {
   const navigate = useNavigate();
-  const [formData, setFormData] = useState({
+  const [formData, setFormData] = useState<FormData>({
     title: '',
     description: '',
+    assignee: []
   });
   const [error, setError] = useState<string | null>(null);
-  const token = localStorage.getItem('token');
+  const userRole = localStorage.getItem('userRole');
+  const [availableAgents, setAvailableAgents] = useState<Agent[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const fetchAgents = async () => {
+      if (userRole === 'agent') {
+        try {
+          const response = await fetchWithAuth('users/agents');
+          if (response) {
+            setAvailableAgents(response);
+          }
+        } catch (error) {
+          console.error('Error fetching agents:', error);
+          setError('Failed to fetch available agents');
+        } finally {
+          setLoading(false);
+        }
+      }
+    };
+
+    fetchAgents();
+  }, [userRole]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
 
     try {
+      const token = localStorage.getItem('token');
       if (!token) {
         setError('No authentication token found');
         return;
@@ -31,6 +69,12 @@ const CreateTicket: React.FC = () => {
         return;
       }
 
+      // Only include assignee if user is an agent
+      const submitData = {
+        ...formData,
+        assignee: userRole === 'agent' ? formData.assignee : []
+      };
+
       const response = await fetch('http://localhost:5001/tickets', {
         method: 'POST',
         headers: {
@@ -38,7 +82,7 @@ const CreateTicket: React.FC = () => {
           'Authorization': `Bearer ${token}`,
           'X-Refresh-Token': refreshToken,
         },
-        body: JSON.stringify(formData),
+        body: JSON.stringify(submitData),
       });
 
       if (!response.ok) {
@@ -88,6 +132,24 @@ const CreateTicket: React.FC = () => {
               />
               <label htmlFor="description">Description</label>
             </div>
+
+            {userRole === 'agent' && (
+              <div className="p-float-label">
+                <MultiSelect
+                  id="assignee"
+                  value={formData.assignee}
+                  onChange={(e) => setFormData({ ...formData, assignee: e.value })}
+                  options={availableAgents}
+                  optionLabel="email"
+                  optionValue="id"
+                  className="w-full"
+                  display="chip"
+                  placeholder={loading ? 'Loading agents...' : 'Select agents to assign'}
+                  disabled={loading}
+                />
+                <label htmlFor="assignee">Assign To</label>
+              </div>
+            )}
 
             <div className="flex gap-2 mt-3">
               <Button
