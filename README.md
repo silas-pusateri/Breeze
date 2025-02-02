@@ -1,2 +1,2 @@
 # Breeze
-Ticket manager with AI tools to automated workflows
+Ticket manager with AI tools to automate workflows
